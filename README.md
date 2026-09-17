@@ -17,8 +17,22 @@ des Geräts.
   Hole-in-One bis Doppelbogey.
 - **Historie** — gespielte Runden bleiben auf dem Gerät und lassen sich wieder
   öffnen oder löschen.
+- **Stableford** — pro Runde zuschaltbar. Punkte netto nach Spielvorgabe, verteilt
+  über den Stroke-Index des Platzes. Par netto sind 2 Punkte, unter null geht es
+  nicht.
+- **Statistik** — über alle abgeschlossenen Runden, gebündelt nach Spielernamen:
+  Schläge je Bahn, ±Par je Bahn, beste Runde, Score-Verteilung, Schnitt je Par-3,
+  -4 und -5.
+- **Vorschläge** — Namen, Spielvorgaben und Platz-Vorlagen der letzten Runden
+  lassen sich beim Anlegen antippen statt neu einzutippen.
+- **Teilen und Sichern** — Ergebnis als Text über den iOS-Teilen-Dialog, alle
+  Runden als JSON exportieren und wieder einlesen. Beim Import werden Runden
+  ergänzt, nie ersetzt.
+- **Impressum** — erreichbar über die Fußzeile. Die Felder sind **Platzhalter**
+  und müssen ausgefüllt werden, bevor die Seite weitergegeben wird.
 
-Nicht dabei: Handicap/Netto, Stableford, Abgleich zwischen mehreren Geräten.
+Nicht dabei: Brutto-Netto-Wertung außerhalb von Stableford, Abgleich zwischen
+mehreren Geräten.
 
 ## Aufs iPhone bringen
 
@@ -62,6 +76,7 @@ Es gibt keinen Build-Schritt und keine Abhängigkeiten. `index.html` im Editor
 ändern, Datei im Browser neu laden, fertig.
 
 Die Rechenfunktionen (`totalStrokes`, `toPar`, `scoreLabel`, `leaderboard`,
+`strokesReceived`, `stablefordPoints`, `statsFor`, `mergeRounds`,
 `normalizeRound`, Serialisierung) prüft ein eingebauter Selbsttest:
 
 ```
