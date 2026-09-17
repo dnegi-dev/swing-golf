@@ -22,22 +22,27 @@ Nicht dabei: Handicap/Netto, Stableford, Abgleich zwischen mehreren Geräten.
 
 ## Aufs iPhone bringen
 
-`index.html` per AirDrop, Mail oder Messenger aufs Gerät schicken, in der
-Dateien-App ablegen und von dort öffnen. Am Desktop reicht ein Doppelklick.
+**Mit Home-Screen-Icon.** Die Pages-Adresse in Safari öffnen, dann
+*Teilen → Zum Home-Bildschirm*. Danach startet die App ohne Safari-Leiste, läuft
+offline und behält ihre Runden zuverlässig. Jeder Push auf `main` wird
+automatisch dorthin deployt.
 
-Zwei Dinge, die man dabei wissen sollte:
+Die Adresse steht nach dem ersten erfolgreichen Deploy unter *Settings → Pages*
+und in der Ausgabe des `Pages`-Jobs; sie hat die Form
+`https://<owner>.github.io/<repo>/`. Voraussetzung ist einmalig
+*Settings → Pages → Build and deployment → Source: **GitHub Actions***. Für
+private Repos braucht Pages GitHub Pro — bei einem öffentlichen Repo geht es auf
+jedem Plan.
 
-- **Kein Home-Screen-Icon.** iOS bietet *Teilen → Zum Home-Bildschirm* nur für
-  Seiten an, die über http(s) geladen wurden, nicht für lokale Dateien.
-- **Die Historie ist nicht garantiert.** Safari räumt den Speicher von
-  `file://`-Seiten unzuverlässig auf. Die laufende Runde übersteht das Schließen
-  der App in der Regel, aber verlassen sollte man sich darauf nicht.
+**Ohne Icon.** `index.html` per AirDrop, Mail oder Messenger aufs Gerät schicken,
+in der Dateien-App ablegen und von dort öffnen. Am Desktop reicht ein
+Doppelklick. Zwei Haken:
 
-Wer beides braucht, legt die Datei auf irgendeinen https-Host (GitHub Pages,
-Netlify, eigener Webspace) und öffnet sie von dort. Dann gibt es ein Icon, die
-App startet ohne Safari-Leiste und die Runden bleiben stabil liegen. Ein
-Deploy-Workflow liegt bewusst nicht bei — das Repo ist privat, und Pages würde
-die Seite öffentlich stellen.
+- iOS bietet *Teilen → Zum Home-Bildschirm* nur für Seiten an, die über http(s)
+  geladen wurden, nicht für lokale Dateien.
+- Safari räumt den Speicher von `file://`-Seiten unzuverlässig auf. Die laufende
+  Runde übersteht das Schließen der App in der Regel, aber verlassen sollte man
+  sich darauf nicht.
 
 ## Download
 
@@ -48,8 +53,8 @@ Die fertige Datei hängt an jedem [Release](../../releases) als
 git tag v1.0 && git push origin v1.0
 ```
 
-Der Release-Job läuft erst, wenn der Selbsttest grün ist — eine kaputte Datei
-kommt gar nicht erst zum Download.
+Release- und Pages-Job laufen beide erst, wenn der Selbsttest grün ist — eine
+kaputte Datei kommt weder zum Download noch auf die veröffentlichte Seite.
 
 ## Entwicklung
 
