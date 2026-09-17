@@ -166,6 +166,44 @@ table.card-table td.empty-cell{color:var(--line)}
 .notice{background:var(--surface-2); border:1px solid var(--line); border-left:4px solid var(--danger);
   border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:14px}
 
+/* ---------- Vorschlaege, Schalter, Fusszeile ---------- */
+.chips-row{display:flex; flex-wrap:wrap; gap:6px}
+.chip-btn{font-size:14px; padding:8px 12px; min-height:38px; border-radius:999px; background:var(--surface-2)}
+.switch{display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:12px 14px}
+.switch .box{flex:0 0 26px; height:26px; border:2px solid var(--line); border-radius:7px;
+  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px}
+.switch[aria-pressed="true"] .box{background:var(--accent); border-color:var(--accent); color:var(--on-accent)}
+.switch .lbl{flex:1; min-width:0}
+.switch .lbl b{display:block}
+.switch .lbl span{display:block; font-size:13px; color:var(--muted)}
+.si-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:8px}
+@media (min-width:480px){ .si-grid{grid-template-columns:repeat(6, 1fr)} }
+.si-cell{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted)}
+.si-cell select{flex:1; min-width:0; min-height:40px; padding:6px 4px; font-size:15px;
+  background:var(--surface-2); border:1px solid var(--line); border-radius:9px; color:var(--text)}
+.footer-nav{display:flex; flex-wrap:wrap; gap:8px; margin-top:4px}
+.footer-nav button{flex:1 1 auto; font-size:14px; min-height:42px; background:transparent}
+
+/* ---------- Statistik ---------- */
+.stat-name{text-transform:none; font-size:17px; color:var(--text)}
+.stat-grid{display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; margin:10px 0}
+.stat{background:var(--surface-2); border-radius:11px; padding:10px 12px}
+.stat .v{font-size:21px; font-weight:750; font-variant-numeric:tabular-nums; line-height:1.15}
+.stat .k{font-size:12px; color:var(--muted)}
+.bars{display:flex; flex-direction:column; gap:5px; margin-top:8px}
+.bar{display:grid; grid-template-columns:96px 1fr 34px; align-items:center; gap:8px; font-size:13px}
+.bar .track{height:9px; background:var(--sunken); border-radius:999px; overflow:hidden}
+.bar .fill{height:100%; border-radius:999px; background:var(--accent)}
+.bar .n{text-align:right; font-variant-numeric:tabular-nums; color:var(--muted)}
+
+/* ---------- Impressum ---------- */
+.legal{font-size:15px; line-height:1.55}
+.legal h3{font-size:14px; text-transform:uppercase; letter-spacing:.3px; color:var(--muted); margin:16px 0 4px}
+.legal h3:first-child{margin-top:0}
+.legal p{margin:0 0 4px}
+.todo{background:color-mix(in srgb, var(--danger) 12%, transparent);
+  border:1px dashed var(--danger); border-radius:6px; padding:1px 7px; font-weight:640}
+
 /* ---------- Selbsttest ---------- */
 .test{padding:10px 12px; border-bottom:1px solid var(--line); font-size:14px; display:flex; gap:10px}
 .test .mark{flex:0 0 20px; font-weight:700}
@@ -192,7 +230,11 @@ const MAX_STROKES = 20;
 const MIN_PAR = 3;
 const MAX_PAR = 6;
 const MAX_PLAYERS = 6;
+const MAX_HCP = 54;
 const DEFAULT_PARS = [4,4,3,5,4,4,3,4,5, 4,3,4,5,4,4,3,4,5]; // Summe 72
+// Stroke-Index: welche Bahn den wievielten Vorschlag bekommt. Ohne die Angaben
+// der Scorekarte ist die Reihenfolge der Bahnen die einzige ehrliche Vorgabe.
+const DEFAULT_SI = Array.from({ length: HOLES }, (_, i) => i + 1);
 
 function uid(){
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -204,17 +246,24 @@ function todayISO(){
   return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
 }
 
-function makePlayer(name){
-  return { id: uid(), name: name || "" };
+function makePlayer(name, hcp){
+  return { id: uid(), name: name || "", hcp: clamp(Math.round(hcp || 0), 0, MAX_HCP) };
 }
 
-function makeRound(courseName, date, players, pars){
+function makeRound(courseName, date, players, pars, opts){
+  const o = opts || {};
   const round = {
     id: uid(),
     courseName: courseName || "",
     date: date || todayISO(),
     pars: (pars || DEFAULT_PARS).slice(0, HOLES),
-    players: players.map(p => ({ id: p.id || uid(), name: p.name })),
+    si: (o.si || DEFAULT_SI).slice(0, HOLES),
+    stableford: !!o.stableford,
+    players: players.map(p => ({
+      id: p.id || uid(),
+      name: p.name,
+      hcp: clamp(Math.round(p.hcp || 0), 0, MAX_HCP)
+    })),
     strokes: {},
     completedAt: null
   };
@@ -235,8 +284,21 @@ function normalizeRound(raw){
     pars[i] = Number.isFinite(v) ? clamp(Math.round(v), MIN_PAR, MAX_PAR) : DEFAULT_PARS[i];
   }
 
+  /* Stroke-Index: jede Zahl 1..18 genau einmal. Alles andere (fehlend, doppelt,
+     Unsinn) faellt auf die Vorgabe zurueck -- ein halb kaputter Index verteilt
+     Vorschlaege falsch, und das faellt niemandem auf. */
+  let si = Array.isArray(raw.si) ? raw.si.map(v => Math.round(Number(v))) : [];
+  const seen = new Set(si);
+  if (si.length !== HOLES || seen.size !== HOLES || si.some(v => !(v >= 1 && v <= HOLES))){
+    si = DEFAULT_SI.slice();
+  }
+
   const players = Array.isArray(raw.players)
-    ? raw.players.filter(p => p && p.id).map(p => ({ id: String(p.id), name: String(p.name || "") }))
+    ? raw.players.filter(p => p && p.id).map(p => ({
+        id: String(p.id),
+        name: String(p.name || ""),
+        hcp: Number.isFinite(Number(p.hcp)) ? clamp(Math.round(Number(p.hcp)), 0, MAX_HCP) : 0
+      }))
     : [];
   if (!players.length) return null;
 
@@ -255,7 +317,9 @@ function normalizeRound(raw){
     id: String(raw.id || uid()),
     courseName: String(raw.courseName || ""),
     date: String(raw.date || todayISO()),
-    pars, players, strokes,
+    pars, si,
+    stableford: !!raw.stableford,
+    players, strokes,
     completedAt: raw.completedAt ? String(raw.completedAt) : null
   };
 }
@@ -316,17 +380,49 @@ function scoreCounts(round, playerId){
   return counts;
 }
 
+/* Vorschlaege nach Spielvorgabe: erst jede Bahn einmal, der Rest nach
+   Stroke-Index. Bei Vorgabe 0 kommt 0 heraus, dann ist Stableford brutto. */
+function strokesReceived(hcp, si, holeIdx){
+  const h = clamp(Math.round(hcp || 0), 0, MAX_HCP);
+  return Math.floor(h / HOLES) + (si[holeIdx] <= (h % HOLES) ? 1 : 0);
+}
+
+function stablefordPoints(strokes, par, received){
+  if (strokes == null) return null;
+  return Math.max(0, 2 - ((strokes - received) - par));
+}
+
+function holePoints(round, playerId, i){
+  const player = round.players.find(p => p.id === playerId);
+  if (!player) return null;
+  return stablefordPoints(
+    round.strokes[playerId][i], round.pars[i],
+    strokesReceived(player.hcp, round.si, i)
+  );
+}
+
+function totalPoints(round, playerId, from = 0, to = HOLES){
+  let sum = 0;
+  for (let i = from; i < to; i++){
+    const p = holePoints(round, playerId, i);
+    if (p != null) sum += p;
+  }
+  return sum;
+}
+
 function leaderboard(round){
   return round.players
     .map(p => ({
       id: p.id,
       name: p.name,
+      hcp: p.hcp,
       strokes: totalStrokes(round, p.id),
       toPar: toPar(round, p.id),
+      points: totalPoints(round, p.id),
       played: holesPlayed(round, p.id)
     }))
     .sort((a, b) =>
-      a.toPar - b.toPar ||
+      (round.stableford ? b.points - a.points : a.toPar - b.toPar) ||
       a.strokes - b.strokes ||
       b.played - a.played ||
       a.name.localeCompare(b.name, "de")
@@ -349,6 +445,112 @@ function fmtToPar(n){
 function fmtDate(iso){
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
   return m ? m[3] + "." + m[2] + "." + m[1] : (iso || "");
+}
+
+/* =========================================================================
+   Statistik, Vorschlaege, Teilen, Export
+   ========================================================================= */
+
+const EMPTY_COUNTS = { ace: 0, eagle: 0, birdie: 0, par: 0, bogey: 0, double: 0 };
+
+/* Fasst ueber alle abgeschlossenen Runden zusammen, gebuendelt nach
+   Spielernamen -- Spieler-IDs sind pro Runde neu, der Name ist die einzige
+   Klammer ueber mehrere Runden hinweg. */
+function statsFor(rounds){
+  const byName = new Map();
+
+  for (const r of rounds){
+    if (!r.completedAt) continue;
+    for (const p of r.players){
+      const played = holesPlayed(r, p.id);
+      if (!played) continue;
+
+      const e = byName.get(p.name) || {
+        name: p.name, rounds: 0, fullRounds: 0, holes: 0, strokes: 0, par: 0,
+        best: null, counts: Object.assign({}, EMPTY_COUNTS),
+        byPar: { 3: { holes: 0, strokes: 0 }, 4: { holes: 0, strokes: 0 },
+                 5: { holes: 0, strokes: 0 }, 6: { holes: 0, strokes: 0 } }
+      };
+
+      e.rounds++;
+      e.holes += played;
+      e.strokes += totalStrokes(r, p.id);
+      e.par += playedPar(r, p.id);
+
+      const counts = scoreCounts(r, p.id);
+      for (const k in counts) e.counts[k] += counts[k];
+
+      const s = r.strokes[p.id];
+      for (let i = 0; i < HOLES; i++){
+        if (s[i] == null) continue;
+        const bucket = e.byPar[r.pars[i]];
+        if (bucket){ bucket.holes++; bucket.strokes += s[i]; }
+      }
+
+      // Nur vollstaendige Runden sind untereinander vergleichbar.
+      if (played === HOLES){
+        e.fullRounds++;
+        const tot = totalStrokes(r, p.id);
+        if (!e.best || tot < e.best.strokes){
+          e.best = { strokes: tot, toPar: toPar(r, p.id), course: r.courseName, date: r.date };
+        }
+      }
+
+      byName.set(p.name, e);
+    }
+  }
+
+  return [...byName.values()]
+    .sort((a, b) => b.rounds - a.rounds || a.name.localeCompare(b.name, "de"));
+}
+
+/* Zuletzt benutzte Namen und Plaetze, neueste zuerst. */
+function recentPlayers(rounds){
+  const seen = new Map();
+  for (let i = rounds.length - 1; i >= 0; i--){
+    for (const p of rounds[i].players){
+      const name = p.name.trim();
+      if (name && !seen.has(name)) seen.set(name, { name, hcp: p.hcp });
+    }
+  }
+  return [...seen.values()];
+}
+
+function recentCourses(rounds){
+  const seen = new Map();
+  for (let i = rounds.length - 1; i >= 0; i--){
+    const r = rounds[i];
+    const name = r.courseName.trim();
+    if (name && !seen.has(name)){
+      seen.set(name, { name, pars: r.pars.slice(), si: r.si.slice() });
+    }
+  }
+  return [...seen.values()];
+}
+
+function shareText(round){
+  const board = leaderboard(round);
+  const lines = [`${round.courseName || "Runde"} \u00b7 ${fmtDate(round.date)}`];
+  board.forEach((e, i) => {
+    lines.push(round.stableford
+      ? `${i + 1}. ${e.name} \u2014 ${e.points} Punkte (${e.strokes} Schl\u00e4ge)`
+      : `${i + 1}. ${e.name} \u2014 ${e.strokes} Schl\u00e4ge (${fmtToPar(e.toPar)})`);
+  });
+  lines.push(`Par ${sum(round.pars, 0, HOLES)}, ${HOLES} Bahnen`);
+  return lines.join("\n");
+}
+
+/* Fuehrt importierte Runden mit den vorhandenen zusammen. Gleiche id heisst
+   gleiche Runde -- lieber ueberspringen als doppelt in der Historie. */
+function mergeRounds(existing, incoming){
+  const known = new Set(existing.map(r => r.id));
+  const added = [];
+  for (const raw of incoming){
+    const r = normalizeRound(raw);
+    if (r && !known.has(r.id)){ known.add(r.id); added.push(r); }
+  }
+  return { rounds: existing.concat(added), added: added.length,
+           skipped: incoming.length - added.length };
 }
 
 /* =========================================================================
@@ -399,6 +601,7 @@ const state = {
   draft: null,         // Runde im Aufbau (noch nicht in rounds)
   hole: 0,             // 0-basierter Bahnindex
   table: false,        // Scorekarte statt Bahn-Eingabe
+  dataMsg: "",         // Rueckmeldung nach Export/Import
   storageFailed: false
 };
 
@@ -437,6 +640,9 @@ function render(){
   if (state.view === "setup") html += viewSetup();
   else if (state.view === "play") html += viewPlay();
   else if (state.view === "summary") html += viewSummary();
+  else if (state.view === "stats") html += viewStats();
+  else if (state.view === "data") html += viewData();
+  else if (state.view === "impressum") html += viewImpressum();
   else html += viewHome();
   root.innerHTML = html;
 }
@@ -479,7 +685,12 @@ function viewHome(){
   }
   html += `</div>`;
 
-  html += `<p class="small muted" style="padding:0 4px">
+  html += `<div class="footer-nav">
+    <button data-act="stats">Statistik</button>
+    <button data-act="data">Daten</button>
+    <button data-act="impressum">Impressum</button>
+  </div>`;
+  html += `<p class="small muted" style="padding:8px 4px 0">
     Alle Runden liegen nur auf diesem Ger&auml;t &ndash; nichts wird hochgeladen.</p>`;
   return html + `</div>`;
 }
@@ -512,6 +723,9 @@ function roundItem(round, isRunning){
 function viewSetup(){
   const d = state.draft;
   const parTotal = d.pars.reduce((a, b) => a + b, 0);
+  const courses = recentCourses(state.rounds);
+  const taken = new Set(d.players.map(p => p.name.trim()).filter(Boolean));
+  const people = recentPlayers(state.rounds).filter(p => !taken.has(p.name));
 
   let html = `<div class="screen">` + topbar("Neue Runde", null,
     `<button class="btn-ghost" data-act="home">Zur&uuml;ck</button>`);
@@ -519,25 +733,50 @@ function viewSetup(){
   html += `<div class="card"><h2>Platz</h2><div class="stack">
     <input type="text" data-field="courseName" value="${esc(d.courseName)}"
       placeholder="Platzname" autocomplete="off" enterkeyhint="done">
-    <input type="date" data-field="date" value="${esc(d.date)}">
-  </div></div>`;
+    <input type="date" data-field="date" value="${esc(d.date)}">`;
+  if (courses.length){
+    html += `<div class="chips-row">` + courses.slice(0, 6).map((c, i) =>
+      `<button class="chip-btn" data-act="use-course" data-i="${i}">${esc(c.name)}</button>`
+    ).join("") + `</div>
+    <p class="small muted" style="margin:0">Antippen &uuml;bernimmt Name, Par und Stroke-Index.</p>`;
+  }
+  html += `</div></div>`;
 
   html += `<div class="card"><h2>Spieler</h2><div class="stack">`;
   d.players.forEach((p, i) => {
     html += `<div class="row">
       <input class="grow" type="text" data-field="player" data-id="${p.id}"
         value="${esc(p.name)}" placeholder="Spieler ${i + 1}" autocomplete="off" enterkeyhint="done">
+      <input type="number" data-field="hcp" data-id="${p.id}" value="${p.hcp}"
+        min="0" max="${MAX_HCP}" step="1" aria-label="Spielvorgabe f&uuml;r Spieler ${i + 1}"
+        style="flex:0 0 76px; text-align:center">
       <button class="btn-ghost btn-danger" data-act="rm-player" data-id="${p.id}"
         aria-label="Spieler entfernen" style="flex:0 0 46px; padding:0"
         ${d.players.length <= 1 ? "disabled" : ""}>&#10005;</button>
     </div>`;
   });
+  html += `<p class="small muted" style="margin:0">Das schmale Feld ist die Spielvorgabe
+    (0 = ohne). Sie z&auml;hlt nur f&uuml;r Stableford.</p>`;
+  if (people.length){
+    html += `<div class="chips-row">` + people.slice(0, 8).map((p, i) =>
+      `<button class="chip-btn" data-act="use-player" data-i="${i}">+ ${esc(p.name)}</button>`
+    ).join("") + `</div>`;
+  }
   if (d.players.length < MAX_PLAYERS){
     html += `<button data-act="add-player">+ Spieler hinzuf&uuml;gen</button>`;
   } else {
     html += `<p class="small muted" style="margin:0">Maximal ${MAX_PLAYERS} Spieler.</p>`;
   }
   html += `</div></div>`;
+
+  html += `<div class="card" style="padding:0; overflow:hidden">
+    <button class="switch" data-act="toggle-stableford" aria-pressed="${d.stableford}"
+      style="border:none; border-radius:0">
+      <span class="box" aria-hidden="true">${d.stableford ? "&#10003;" : ""}</span>
+      <span class="lbl"><b>Stableford z&auml;hlen</b>
+        <span>Punkte statt Schl&auml;ge, netto nach Spielvorgabe</span></span>
+    </button>
+  </div>`;
 
   html += `<div class="card">
     <div class="spread" style="margin-bottom:10px">
@@ -556,6 +795,31 @@ function viewSetup(){
     </div>
     <p class="small muted" style="margin:8px 0 0">Tippen schaltet ${MIN_PAR}&rarr;${MAX_PAR}&rarr;${MIN_PAR} weiter.</p>
   </div>`;
+
+  if (d.stableford){
+    const valid = new Set(d.si).size === HOLES;
+    html += `<div class="card">
+      <h2>Stroke-Index</h2>
+      <p class="small muted" style="margin:-4px 0 10px">Welche Bahn den wievielten
+        Vorschlag bekommt &ndash; steht auf der Scorekarte des Platzes. Jede Zahl
+        genau einmal.</p>
+      <div class="si-grid">`;
+    d.si.forEach((v, i) => {
+      html += `<label class="si-cell">${i + 1}
+        <select data-field="si" data-hole="${i}" aria-label="Stroke-Index Bahn ${i + 1}">` +
+        DEFAULT_SI.map(n => `<option value="${n}"${n === v ? " selected" : ""}>${n}</option>`).join("") +
+        `</select></label>`;
+    });
+    html += `</div>`;
+    if (!valid){
+      html += `<p class="small" style="color:var(--danger); margin:10px 0 0">
+        Jede Zahl darf nur einmal vorkommen &ndash; sonst wird beim Start die
+        Bahnreihenfolge verwendet.</p>`;
+    }
+    html += `<div class="row" style="margin-top:10px">
+      <button class="btn-ghost small grow" data-act="reset-si">Bahnreihenfolge wiederherstellen</button>
+    </div></div>`;
+  }
 
   html += `<button class="btn-primary" data-act="start" style="width:100%">Runde starten</button>`;
   return html + `</div>`;
@@ -586,16 +850,22 @@ function playHole(round){
   for (const p of round.players){
     const v = round.strokes[p.id][i];
     const lbl = scoreLabel(v, par);
-    const running = toPar(round, p.id);
+    const recv = round.stableford ? strokesReceived(p.hcp, round.si, i) : 0;
+    const pts = round.stableford ? holePoints(round, p.id, i) : null;
+    const running = round.stableford
+      ? `${totalPoints(round, p.id)} Pkt`
+      : fmtToPar(toPar(round, p.id));
     html += `<div class="player-card">
       <div class="name"><span class="truncate">${esc(p.name)}</span>
-        <span class="running">Runde ${fmtToPar(running)}</span></div>
+        ${recv ? `<span class="small muted">+${recv}</span>` : ""}
+        <span class="running">Runde ${running}</span></div>
       <div class="stepper">
         <button class="step" data-act="stroke" data-id="${p.id}" data-delta="-1"
           aria-label="Ein Schlag weniger f&uuml;r ${esc(p.name)}">&minus;</button>
         <div class="value">
           <span class="n ${lbl.cls}">${v == null ? "&ndash;" : v}</span>
-          <span class="lbl ${lbl.cls}">${lbl.label}</span>
+          <span class="lbl ${lbl.cls}">${lbl.label}${
+            pts != null ? ` &middot; ${pts} Pkt` : ""}</span>
         </div>
         <button class="step" data-act="stroke" data-id="${p.id}" data-delta="1"
           aria-label="Ein Schlag mehr f&uuml;r ${esc(p.name)}">+</button>
@@ -658,8 +928,11 @@ function playTable(round){
   html += `<div class="card" style="margin-top:12px"><div class="stack">`;
   for (const e of leaderboard(round)){
     html += `<div class="spread"><span class="truncate">${esc(e.name)}</span>
-      <span style="font-variant-numeric:tabular-nums"><strong>${e.strokes || 0}</strong>
-      <span class="muted small">${e.played ? fmtToPar(e.toPar) : "&ndash;"}</span></span></div>`;
+      <span style="font-variant-numeric:tabular-nums">${
+        round.stableford
+          ? `<strong>${e.points}</strong> <span class="muted small">Pkt &middot; ${e.strokes || 0} Schl&auml;ge</span>`
+          : `<strong>${e.strokes || 0}</strong> <span class="muted small">${e.played ? fmtToPar(e.toPar) : "&ndash;"}</span>`
+      }</span></div>`;
   }
   html += `</div></div>`;
   html += `<p class="small muted" style="padding:0 4px">Seitlich wischen f&uuml;r Bahn 10&ndash;18 und die Summen.
@@ -695,6 +968,11 @@ const COUNT_LABELS = [
   ["par", "Par"], ["bogey", "Bogey"], ["double", "Doppelbogey+"]
 ];
 
+const SCORE_CLASS = {
+  ace: "s-ace", eagle: "s-eagle", birdie: "s-birdie",
+  par: "s-par", bogey: "s-bogey", double: "s-double"
+};
+
 function viewSummary(){
   const round = activeRound();
   if (!round){ state.view = "home"; return viewHome(); }
@@ -715,20 +993,175 @@ function viewSummary(){
       <span class="pos">${idx + 1}</span>
       <span class="who">
         <span class="n truncate">${esc(e.name)}</span>
-        <span class="small muted">${e.played} von ${HOLES} Bahnen</span>
+        <span class="small muted">${e.played} von ${HOLES} Bahnen${
+          round.stableford && e.hcp ? ` &middot; Vorgabe ${e.hcp}` : ""}</span>
         ${chips ? `<span class="chips">${chips}</span>` : ""}
       </span>
-      <span class="tot"><span class="strokes">${e.strokes}</span>
-        <span class="rel">${fmtToPar(e.toPar)}</span></span>
+      <span class="tot">${
+        round.stableford
+          ? `<span class="strokes">${e.points}</span>
+             <span class="rel">Pkt &middot; ${e.strokes} Schl&auml;ge</span>`
+          : `<span class="strokes">${e.strokes}</span>
+             <span class="rel">${fmtToPar(e.toPar)}</span>`
+      }</span>
     </div>`;
   });
   html += `</div>`;
 
   html += `<div class="stack">
+    <button data-act="share">Ergebnis teilen</button>
     <button data-act="show-card">Scorekarte ansehen</button>
     <button data-act="reopen">Runde wieder &ouml;ffnen</button>
     <button class="btn-primary" data-act="home">Zur &Uuml;bersicht</button>
   </div>`;
+  return html + `</div>`;
+}
+
+/* ---------- Statistik ---------- */
+
+function fmtAvg(n, digits = 1){
+  return Number.isFinite(n) ? n.toFixed(digits).replace(".", ",") : "&ndash;";
+}
+
+/* Wie fmtToPar, nur mit Nachkommastellen: genau auf Par bleibt "E". */
+function fmtRelAvg(n){
+  if (!Number.isFinite(n)) return "&ndash;";
+  const s = fmtAvg(Math.abs(n), 2);
+  if (Number(s.replace(",", ".")) === 0) return "E";
+  return (n > 0 ? "+" : "\u2212") + s;
+}
+
+function viewStats(){
+  const rows = statsFor(state.rounds);
+
+  let html = `<div class="screen">` + topbar("Statistik", "\u00fcber alle abgeschlossenen Runden",
+    `<button class="btn-ghost" data-act="home">Zur&uuml;ck</button>`);
+
+  if (!rows.length){
+    html += `<div class="card"><div class="empty">Noch nichts zu z&auml;hlen &ndash;
+      schlie&szlig;e erst eine Runde ab.</div></div>`;
+    return html + `</div>`;
+  }
+
+  for (const e of rows){
+    const perHole = e.strokes / e.holes;
+    const parPerHole = (e.strokes - e.par) / e.holes;
+
+    html += `<div class="card">
+      <div class="spread"><h2 class="stat-name" style="margin:0">${esc(e.name)}</h2>
+        <span class="small muted">${e.rounds} Runde${e.rounds === 1 ? "" : "n"}</span></div>
+      <div class="stat-grid">
+        <div class="stat"><div class="v">${fmtAvg(perHole, 2)}</div>
+          <div class="k">Schl&auml;ge je Bahn</div></div>
+        <div class="stat"><div class="v">${fmtRelAvg(parPerHole)}</div>
+          <div class="k">zu Par je Bahn</div></div>
+        <div class="stat"><div class="v">${e.best ? e.best.strokes : "&ndash;"}</div>
+          <div class="k">${e.best
+            ? `beste Runde (${fmtToPar(e.best.toPar)})`
+            : "keine volle Runde"}</div></div>
+        <div class="stat"><div class="v">${e.holes}</div>
+          <div class="k">Bahnen gez&auml;hlt</div></div>
+      </div>`;
+
+    if (e.best && e.best.course){
+      html += `<p class="small muted" style="margin:0 0 8px">Beste Runde:
+        ${esc(e.best.course)}, ${fmtDate(e.best.date)}</p>`;
+    }
+
+    const max = Math.max(1, ...COUNT_LABELS.map(([k]) => e.counts[k]));
+    html += `<div class="bars">`;
+    for (const [k, label] of COUNT_LABELS){
+      const n = e.counts[k];
+      if (!n) continue;
+      const pct = Math.round((n / e.holes) * 100);
+      html += `<div class="bar">
+        <span class="${SCORE_CLASS[k]}">${label}</span>
+        <span class="track"><span class="fill" style="width:${(n / max) * 100}%"></span></span>
+        <span class="n">${n}</span>
+      </div>`;
+    }
+    html += `</div>`;
+
+    const pars = [3, 4, 5, 6].filter(x => e.byPar[x].holes > 0);
+    if (pars.length){
+      html += `<p class="small muted" style="margin:10px 0 0">Schnitt je Bahnart: ` +
+        pars.map(x => `Par ${x} <strong>${fmtAvg(e.byPar[x].strokes / e.byPar[x].holes, 2)}</strong>`)
+            .join(" &middot; ") + `</p>`;
+    }
+    html += `</div>`;
+  }
+
+  return html + `</div>`;
+}
+
+/* ---------- Daten: Export und Import ---------- */
+
+function viewData(){
+  const n = state.rounds.length;
+  let html = `<div class="screen">` + topbar("Daten", "Sichern und zur\u00fcckholen",
+    `<button class="btn-ghost" data-act="home">Zur&uuml;ck</button>`);
+
+  html += `<div class="card">
+    <h2>Auf diesem Ger&auml;t</h2>
+    <p style="margin:0 0 12px">${n} Runde${n === 1 ? "" : "n"} gespeichert.
+      Sie liegen ausschlie&szlig;lich hier im Browser &ndash; ein anderes Ger&auml;t,
+      ein anderer Browser oder gel&ouml;schte Website-Daten hei&szlig;t: weg.</p>
+    <div class="stack">
+      <button data-act="export-json" ${n ? "" : "disabled"}>Als JSON sichern</button>
+      <button data-act="import-json">JSON laden</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json,.json" hidden>
+    <p class="small muted" style="margin:12px 0 0">Beim Laden werden Runden
+      erg&auml;nzt, nicht ersetzt. Schon vorhandene bleiben unangetastet.</p>
+  </div>`;
+
+  if (state.dataMsg){
+    html += `<div class="card"><p style="margin:0">${esc(state.dataMsg)}</p></div>`;
+  }
+
+  return html + `</div>`;
+}
+
+/* ---------- Impressum ---------- */
+
+function viewImpressum(){
+  const todo = t => `<span class="todo">${t}</span>`;
+
+  let html = `<div class="screen">` + topbar("Impressum", null,
+    `<button class="btn-ghost" data-act="home">Zur&uuml;ck</button>`);
+
+  html += `<div class="card legal">
+    <h3>Angaben gem&auml;&szlig; &sect; 5 DDG</h3>
+    <p>${todo("Vor- und Nachname")}</p>
+    <p>${todo("Stra&szlig;e und Hausnummer")}</p>
+    <p>${todo("PLZ und Ort")}</p>
+    <p>${todo("Land")}</p>
+
+    <h3>Kontakt</h3>
+    <p>E-Mail: ${todo("E-Mail-Adresse")}</p>
+    <p>Telefon: ${todo("optional")}</p>
+
+    <h3>Verantwortlich f&uuml;r den Inhalt</h3>
+    <p>${todo("Name und Anschrift wie oben")}</p>
+
+    <h3>Haftung f&uuml;r Inhalte</h3>
+    <p>Diese Seite ist ein privates, nicht-kommerzielles Projekt. Die Inhalte
+      wurden mit Sorgfalt erstellt, f&uuml;r Richtigkeit und Vollst&auml;ndigkeit
+      wird keine Gew&auml;hr &uuml;bernommen.</p>
+
+    <h3>Datenschutz</h3>
+    <p>Diese Anwendung erhebt keine personenbezogenen Daten, setzt keine Cookies
+      und bindet keine externen Dienste ein. Eingetragene Runden werden
+      ausschlie&szlig;lich lokal im Browser gespeichert und verlassen das
+      Ger&auml;t nicht.</p>
+    <p class="muted">Beim Abruf der Seite verarbeitet der Hoster technisch
+      notwendige Zugriffsdaten. ${todo("Hoster benennen, z. B. GitHub Pages")}</p>
+  </div>`;
+
+  html += `<p class="small muted" style="padding:0 4px">Die rot markierten Felder
+    sind Platzhalter und m&uuml;ssen vor einer Weitergabe der Seite ausgef&uuml;llt
+    werden.</p>`;
+
   return html + `</div>`;
 }
 
@@ -738,14 +1171,20 @@ function viewSummary(){
 
 const ACTIONS = {
   new(){
-    state.draft = makeRound("", todayISO(), [makePlayer(""), makePlayer("")], DEFAULT_PARS);
+    state.draft = makeRound("", todayISO(), [makePlayer(""), makePlayer("")],
+      DEFAULT_PARS, { si: DEFAULT_SI, stableford: false });
     state.view = "setup";
   },
 
   home(){
     state.view = "home";
     state.table = false;
+    state.dataMsg = "";
   },
+
+  stats(){ state.view = "stats"; },
+  data(){ state.view = "data"; state.dataMsg = ""; },
+  impressum(){ state.view = "impressum"; },
 
   open(el){
     const round = state.rounds.find(r => r.id === el.dataset.id);
@@ -794,10 +1233,38 @@ const ACTIONS = {
     state.draft.pars = DEFAULT_PARS.slice();
   },
 
+  "reset-si"(){
+    state.draft.si = DEFAULT_SI.slice();
+  },
+
+  "toggle-stableford"(){
+    state.draft.stableford = !state.draft.stableford;
+  },
+
+  "use-course"(el){
+    const c = recentCourses(state.rounds)[Number(el.dataset.i)];
+    if (!c) return;
+    state.draft.courseName = c.name;
+    state.draft.pars = c.pars.slice();
+    state.draft.si = c.si.slice();
+  },
+
+  "use-player"(el){
+    if (state.draft.players.length >= MAX_PLAYERS) return;
+    const taken = new Set(state.draft.players.map(p => p.name.trim()).filter(Boolean));
+    const person = recentPlayers(state.rounds).filter(p => !taken.has(p.name))[Number(el.dataset.i)];
+    if (!person) return;
+    // Eine noch leere Zeile fuellen, statt eine weitere danebenzusetzen.
+    const empty = state.draft.players.find(p => !p.name.trim());
+    if (empty){ empty.name = person.name; empty.hcp = person.hcp; }
+    else state.draft.players.push(makePlayer(person.name, person.hcp));
+  },
+
   start(){
     const d = state.draft;
     d.players.forEach((p, i) => { if (!p.name.trim()) p.name = "Spieler " + (i + 1); });
-    const round = makeRound(d.courseName.trim(), d.date, d.players, d.pars);
+    const round = makeRound(d.courseName.trim(), d.date, d.players, d.pars,
+      { si: d.si, stableford: d.stableford });
     state.rounds.push(round);
     state.activeId = round.id;
     state.draft = null;
@@ -854,6 +1321,44 @@ const ACTIONS = {
     state.hole = firstOpenHole(round);
     state.view = "play";
     persist();
+  },
+
+  /* navigator.share braucht eine echte Nutzergeste. Der Klick-Handler ruft
+     diese Funktion synchron auf, und share() ist das erste await -- damit
+     bleibt die Geste gueltig. */
+  async share(){
+    const round = activeRound();
+    if (!round) return;
+    const text = shareText(round);
+    try {
+      if (navigator.share){
+        await navigator.share({ title: round.courseName || "Swing Golf", text });
+        return;
+      }
+      await navigator.clipboard.writeText(text);
+      alert("Ergebnis in die Zwischenablage kopiert.");
+    } catch (err){
+      if (err && err.name === "AbortError") return;   // Nutzer hat abgebrochen
+      alert(text);                                     // letzter Ausweg: zum Abschreiben
+    }
+  },
+
+  "export-json"(){
+    const blob = new Blob([serialize(state)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `swing-golf-${todayISO()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    state.dataMsg = `${state.rounds.length} Runde(n) als Datei gesichert.`;
+  },
+
+  "import-json"(){
+    const input = document.getElementById("importFile");
+    if (input) input.click();
   }
 };
 
@@ -876,9 +1381,45 @@ root.addEventListener("input", ev => {
   if (field === "player"){
     const p = state.draft.players.find(p => p.id === el.dataset.id);
     if (p) p.name = el.value;
+  } else if (field === "hcp"){
+    const p = state.draft.players.find(p => p.id === el.dataset.id);
+    if (p) p.hcp = clamp(Math.round(Number(el.value) || 0), 0, MAX_HCP);
   } else if (field === "courseName" || field === "date"){
     state.draft[field] = el.value;
   }
+});
+
+/* Auswahlfelder und der Datei-Dialog laufen ueber change, nicht input. */
+root.addEventListener("change", ev => {
+  const si = ev.target.closest('[data-field="si"]');
+  if (si && state.draft){
+    state.draft.si[Number(si.dataset.hole)] = Number(si.value);
+    render();                       // die Doppelt-Warnung muss mitziehen
+    return;
+  }
+
+  const file = ev.target.id === "importFile" ? ev.target : null;
+  if (!file || !file.files || !file.files[0]) return;
+
+  const reader = new FileReader();
+  reader.onerror = () => { state.dataMsg = "Die Datei konnte nicht gelesen werden."; render(); };
+  reader.onload = () => {
+    let data;
+    try { data = JSON.parse(String(reader.result)); }
+    catch { state.dataMsg = "Die Datei ist kein g\u00fcltiges JSON."; render(); return; }
+
+    const incoming = Array.isArray(data) ? data
+      : (data && Array.isArray(data.rounds) ? data.rounds : null);
+    if (!incoming){ state.dataMsg = "In der Datei stehen keine Runden."; render(); return; }
+
+    const merged = mergeRounds(state.rounds, incoming);
+    state.rounds = merged.rounds;
+    persist();
+    state.dataMsg = `${merged.added} Runde(n) \u00fcbernommen, ${merged.skipped} `
+      + `\u00fcbersprungen (schon vorhanden oder unbrauchbar).`;
+    render();
+  };
+  reader.readAsText(file.files[0]);
 });
 
 /* =========================================================================
@@ -1043,6 +1584,124 @@ function runSelfTest(){
   check("roundProgress zaehlt die weiteste Bahn", () => {
     eq(roundProgress(demo()), 3, "Anna hat 3");
     eq(isRoundEmpty(makeRound("X", "2026-01-01", [makePlayer("A")], DEFAULT_PARS)), true, "leere Runde");
+  });
+
+  check("strokesReceived verteilt nach Stroke-Index", () => {
+    const si = DEFAULT_SI;
+    eq(DEFAULT_SI.map((_, i) => strokesReceived(0, si, i)).reduce((a, b) => a + b, 0), 0, "Vorgabe 0");
+    eq(DEFAULT_SI.map((_, i) => strokesReceived(18, si, i)), new Array(HOLES).fill(1), "Vorgabe 18");
+    eq(strokesReceived(5, si, 0), 1, "SI 1 bei Vorgabe 5");
+    eq(strokesReceived(5, si, 4), 1, "SI 5 bei Vorgabe 5");
+    eq(strokesReceived(5, si, 5), 0, "SI 6 bei Vorgabe 5");
+    eq(strokesReceived(20, si, 1), 2, "Vorgabe 20, SI 2");
+    eq(strokesReceived(20, si, 2), 1, "Vorgabe 20, SI 3");
+    eq(strokesReceived(999, si, 0), strokesReceived(MAX_HCP, si, 0), "ueber Maximum geklemmt");
+  });
+
+  check("stablefordPoints: Par netto = 2, nie negativ", () => {
+    eq(stablefordPoints(4, 4, 0), 2, "Par");
+    eq(stablefordPoints(3, 4, 0), 3, "Birdie");
+    eq(stablefordPoints(2, 4, 0), 4, "Eagle");
+    eq(stablefordPoints(5, 4, 0), 1, "Bogey");
+    eq(stablefordPoints(6, 4, 0), 0, "Doppelbogey");
+    eq(stablefordPoints(9, 4, 0), 0, "Triple+ bleibt 0");
+    eq(stablefordPoints(5, 4, 1), 2, "Bogey mit einem Vorschlag = Par netto");
+    eq(stablefordPoints(null, 4, 0), null, "leere Bahn");
+  });
+
+  check("Punkte der Runde zaehlen mit Vorgabe", () => {
+    const r = makeRound("P", "2026-05-01",
+      [{ id: "a", name: "Anna", hcp: 18 }, { id: "b", name: "Ben", hcp: 0 }],
+      DEFAULT_PARS, { stableford: true });
+    for (let i = 0; i < HOLES; i++){ r.strokes.a[i] = r.pars[i] + 1; r.strokes.b[i] = r.pars[i]; }
+    // Anna: jede Bahn ein Vorschlag, Bogey brutto -> Par netto -> 2 Punkte
+    eq(totalPoints(r, "a"), 36, "Anna");
+    eq(totalPoints(r, "b"), 36, "Ben");
+    eq(holePoints(r, "a", 0), 2, "Annas Bahn 1");
+    eq(leaderboard(r)[0].points, 36, "Spitze");
+  });
+
+  check("leaderboard sortiert bei Stableford nach Punkten", () => {
+    const r = makeRound("P", "2026-05-01",
+      [{ id: "a", name: "Anna" }, { id: "b", name: "Ben" }],
+      DEFAULT_PARS, { stableford: true });
+    r.strokes.a[0] = 6;                 // 0 Punkte
+    r.strokes.b[0] = 3;                 // Birdie, 3 Punkte
+    eq(leaderboard(r).map(e => e.name), ["Ben", "Anna"], "nach Punkten");
+    r.stableford = false;
+    eq(leaderboard(r).map(e => e.name), ["Ben", "Anna"], "brutto gleiche Reihenfolge");
+  });
+
+  check("normalizeRound repariert Stroke-Index und Vorgabe", () => {
+    const base = { id: "x", players: [{ id: "a", name: "A", hcp: 99 }], strokes: { a: [] } };
+    eq(normalizeRound(Object.assign({}, base, { si: [1, 2, 3] })).si, DEFAULT_SI, "zu kurz");
+    eq(normalizeRound(Object.assign({}, base, { si: new Array(HOLES).fill(1) })).si, DEFAULT_SI, "alles gleich");
+    const gut = DEFAULT_SI.slice().reverse();
+    eq(normalizeRound(Object.assign({}, base, { si: gut })).si, gut, "gueltige Permutation bleibt");
+    eq(normalizeRound(base).players[0].hcp, MAX_HCP, "Vorgabe geklemmt");
+    eq(normalizeRound(base).stableford, false, "Stableford default aus");
+  });
+
+  check("statsFor buendelt ueber Runden nach Namen", () => {
+    const mk = (date, strokes, fertig) => {
+      const r = makeRound("Platz", date, [{ id: "a", name: "Anna" }], DEFAULT_PARS);
+      for (let i = 0; i < HOLES; i++) r.strokes.a[i] = strokes[i];
+      if (fertig) r.completedAt = date + "T12:00:00Z";
+      return r;
+    };
+    const parRunde = DEFAULT_PARS.slice();
+    const schlecht = DEFAULT_PARS.map(v => v + 1);
+    const s = statsFor([mk("2026-01-01", parRunde, true), mk("2026-02-01", schlecht, true),
+                        mk("2026-03-01", schlecht, false)]);
+    eq(s.length, 1, "ein Spieler");
+    eq(s[0].rounds, 2, "offene Runde zaehlt nicht");
+    eq(s[0].holes, HOLES * 2, "Bahnen");
+    eq(s[0].strokes, 72 + 90, "Schlaege");
+    eq(s[0].best.strokes, 72, "beste Runde");
+    eq(s[0].best.toPar, 0, "beste Runde zu Par");
+    eq(s[0].counts.par, HOLES, "Pars");
+    eq(s[0].counts.bogey, HOLES, "Bogeys");
+    // 4 Par-3-Bahnen, zwei Runden: 4x Par (3) + 4x Bogey (4) = 28 Schlaege
+    eq(s[0].byPar[3].holes, 8, "Par-3-Bahnen ueber beide Runden");
+    eq(s[0].byPar[3].strokes, 28, "Schlaege auf Par 3");
+  });
+
+  check("statsFor ignoriert Spieler ohne Eintrag", () => {
+    const r = makeRound("P", "2026-01-01", [makePlayer("A"), makePlayer("B")], DEFAULT_PARS);
+    r.strokes[r.players[0].id][0] = 4;
+    r.completedAt = "2026-01-01T12:00:00Z";
+    eq(statsFor([r]).map(e => e.name), ["A"], "nur wer gespielt hat");
+  });
+
+  check("Vorschlaege: zuletzt benutzte Spieler und Plaetze", () => {
+    const alt = makeRound("Alter Platz", "2026-01-01", [makePlayer("Anna", 12)], DEFAULT_PARS);
+    const neu = makeRound("Neuer Platz", "2026-02-01",
+      [makePlayer("Ben"), makePlayer("Anna", 10)], DEFAULT_PARS.map(v => 3));
+    eq(recentPlayers([alt, neu]).map(p => p.name), ["Ben", "Anna"], "neueste zuerst, ohne Dubletten");
+    eq(recentPlayers([alt, neu])[1].hcp, 10, "juengste Vorgabe gewinnt");
+    eq(recentCourses([alt, neu]).map(c => c.name), ["Neuer Platz", "Alter Platz"], "Plaetze");
+    eq(recentCourses([alt, neu])[0].pars[0], 3, "Par-Vorlage kommt mit");
+  });
+
+  check("mergeRounds ergaenzt, ohne zu doppeln", () => {
+    const a = demo(); const b = demo();
+    const m1 = mergeRounds([a], [b]);
+    eq(m1.added, 1, "fremde Runde kommt dazu");
+    const m2 = mergeRounds([a], [a]);
+    eq([m2.added, m2.skipped], [0, 1], "gleiche id wird uebersprungen");
+    const m3 = mergeRounds([], [null, { players: [] }, a]);
+    eq([m3.added, m3.skipped], [1, 2], "Muell faellt raus");
+  });
+
+  check("shareText nennt Platz, Rang und Ergebnis", () => {
+    const r = demo();
+    r.completedAt = "2026-05-01T12:00:00Z";
+    const t = shareText(r);
+    if (!t.includes("Testplatz")) throw new Error("Platz fehlt");
+    if (!t.includes("1. Ben")) throw new Error("Rang fehlt: " + t);
+    if (!t.includes("Par 72")) throw new Error("Par-Summe fehlt");
+    r.stableford = true;
+    if (!shareText(r).includes("Punkte")) throw new Error("Punkte fehlen bei Stableford");
   });
 
   const failed = results.filter(r => !r.ok).length;
