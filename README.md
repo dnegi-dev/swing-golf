@@ -8,6 +8,9 @@ des Geräts.
 
 ## Was die App kann
 
+- **Startseite, die eine Sache zeigt** — läuft eine Runde, steht sie oben mit
+  Bahn, Fortschritt und Stand; sonst nur der Weg in eine neue. Alles andere
+  liegt hinter der Navigationsleiste unten: *Spielen · Runden · Statistik · Mehr*.
 - **Vorlage wählen** — zuerst die Form: *Golfplatz 18/9 Loch*, *Swingolf 12/9
   Bahnen*, oder ein Platz, den du schon gespielt hast. Der bringt Bahnenzahl,
   Par und Stroke-Index mit.
@@ -38,7 +41,17 @@ des Geräts.
 - **Teilen und Sichern** — Ergebnis als Text über den iOS-Teilen-Dialog, alle
   Runden als JSON exportieren und wieder einlesen. Beim Import werden Runden
   ergänzt, nie ersetzt.
-- **Impressum** — erreichbar über die Fußzeile. Die Felder sind **Platzhalter**
+- **Vorlagen sichern** — Bahnenzahl, Par und Stroke-Index einer Runde lassen
+  sich unter einem Namen speichern und stehen beim nächsten Mal ganz oben. Sie
+  überleben das Löschen der Runde und wandern mit dem Export mit.
+- **Druckansicht** — *Drucken* auf der Scorekarte oder im Endstand gibt eine
+  saubere Seite: Platz, Datum und Besetzung als Kopf, die volle Karte mit
+  Out/In/Gesamt, keine Bedienelemente. Leere Bahnen bleiben leer zum Eintragen
+  von Hand.
+- **Darstellung** — unter *Mehr*: Automatisch (folgt dem Gerät), Hell oder
+  Dunkel. Die Wahl bleibt gespeichert, gehört aber zum Gerät und wandert nicht
+  in den Export.
+- **Impressum** — erreichbar über *Mehr*. Die Felder sind **Platzhalter**
   und müssen ausgefüllt werden, bevor die Seite weitergegeben wird.
 
 Nicht dabei: Brutto-Netto-Wertung außerhalb von Stableford, Abgleich zwischen
