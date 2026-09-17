@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<title>Swing Golf</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Golf-Scorecard fuer 18 Bahnen. Laeuft offline, speichert alles lokal auf dem Geraet.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Swing Golf">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f7a4a">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='38' fill='%230b4a32'/><circle cx='58' cy='130' r='20' fill='%23f6f8f6'/><path d='M112 32v116' stroke='%23f6f8f6' stroke-width='10' stroke-linecap='round'/><path d='M112 38l46 19-46 19z' fill='%23e04141'/></svg>">
+<style>
+:root{
+  --bg:#eef2ee; --surface:#ffffff; --surface-2:#f4f7f4; --sunken:#e6ebe6;
+  --text:#132019; --muted:#5e6d64; --line:#d5ddd6;
+  --accent:#0f7a4a; --accent-press:#0b5f39; --on-accent:#ffffff;
+  --danger:#b3261e;
+  --ace:#7b1fa2; --eagle:#7b1fa2; --birdie:#c62828; --par:#41504a;
+  --bogey:#1f5fa8; --double:#0f3c6b;
+  --radius:14px;
+  --pad: max(14px, env(safe-area-inset-left)) max(14px, env(safe-area-inset-right));
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1512; --surface:#18211c; --surface-2:#1f2a24; --sunken:#121a16;
+    --text:#e8efe9; --muted:#9baba2; --line:#2c3a32;
+    --accent:#2ea36b; --accent-press:#248a5b; --on-accent:#06120c;
+    --danger:#f2837c;
+    --ace:#d38bef; --eagle:#d38bef; --birdie:#ff8a80; --par:#b6c4bb;
+    --bogey:#7fb1ee; --double:#a9c9f2;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1512; --surface:#18211c; --surface-2:#1f2a24; --sunken:#121a16;
+  --text:#e8efe9; --muted:#9baba2; --line:#2c3a32;
+  --accent:#2ea36b; --accent-press:#248a5b; --on-accent:#06120c;
+  --danger:#f2837c;
+  --ace:#d38bef; --eagle:#d38bef; --birdie:#ff8a80; --par:#b6c4bb;
+  --bogey:#7fb1ee; --double:#a9c9f2;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font:16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  overscroll-behavior-y:contain;
+}
+button, input, select{font:inherit; color:inherit}
+button{
+  -webkit-appearance:none; appearance:none; border:1px solid var(--line);
+  background:var(--surface); border-radius:var(--radius); padding:12px 14px;
+  min-height:44px; cursor:pointer; touch-action:manipulation;
+  -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent;
+}
+button:active{background:var(--surface-2)}
+button:disabled{opacity:.45; cursor:default}
+button:focus-visible, input:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
+input[type=text], input[type=date]{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+  padding:11px 12px; min-height:44px; width:100%; font-size:16px;
+}
+.btn-primary{background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:640}
+.btn-primary:active{background:var(--accent-press); border-color:var(--accent-press)}
+.btn-ghost{background:transparent}
+.btn-danger{color:var(--danger)}
+
+#app{max-width:680px; margin:0 auto; padding:0 max(14px, env(safe-area-inset-left)) 0 max(14px, env(safe-area-inset-right))}
+.screen{display:flex; flex-direction:column; min-height:100dvh; padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+.topbar{
+  display:flex; align-items:center; gap:10px; min-height:56px;
+  padding-top:max(10px, env(safe-area-inset-top));
+}
+.topbar h1{font-size:19px; margin:0; flex:1; letter-spacing:.2px}
+.topbar .sub{font-size:13px; color:var(--muted); font-weight:400; display:block}
+.topbar button{padding:8px 12px; min-height:40px; font-size:14px}
+
+.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin-bottom:12px}
+.card h2{font-size:15px; margin:0 0 10px; letter-spacing:.3px; text-transform:uppercase; color:var(--muted)}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.stack{display:flex; flex-direction:column; gap:10px}
+.row{display:flex; align-items:center; gap:10px}
+.spread{display:flex; align-items:center; justify-content:space-between; gap:10px}
+.grow{flex:1; min-width:0}
+.truncate{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.empty{text-align:center; color:var(--muted); padding:28px 10px}
+
+/* ---------- Startseite ---------- */
+.round-item{width:100%; text-align:left; display:flex; align-items:center; gap:12px; padding:12px 14px}
+.round-item .meta{flex:1; min-width:0}
+.round-item .title{font-weight:640}
+.round-item .score{font-variant-numeric:tabular-nums; font-weight:700; font-size:17px}
+.badge{display:inline-block; font-size:12px; font-weight:700; letter-spacing:.4px;
+  padding:3px 8px; border-radius:999px; background:var(--accent); color:var(--on-accent)}
+
+/* ---------- Setup ---------- */
+.par-grid{display:grid; grid-template-columns:repeat(6, 1fr); gap:6px}
+@media (min-width:480px){ .par-grid{grid-template-columns:repeat(9, 1fr)} }
+.par-cell{display:flex; flex-direction:column; align-items:center; gap:2px; padding:7px 0; min-height:52px; background:var(--surface-2)}
+.par-cell .hole{font-size:11px; color:var(--muted); line-height:1}
+.par-cell .val{font-size:18px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.1}
+
+/* ---------- Bahn-Eingabe ---------- */
+.hole-head{text-align:center; padding:6px 0 14px}
+.hole-head .no{font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+.hole-head .par{font-size:40px; font-weight:750; line-height:1.1; font-variant-numeric:tabular-nums}
+.player-card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:12px 12px 14px; margin-bottom:10px}
+.player-card .name{font-weight:640; display:flex; align-items:baseline; gap:8px}
+.player-card .running{margin-left:auto; font-size:14px; color:var(--muted); font-variant-numeric:tabular-nums}
+.stepper{display:flex; align-items:center; gap:10px; margin-top:8px}
+.stepper .step{flex:0 0 64px; height:58px; font-size:26px; font-weight:600; display:flex; align-items:center; justify-content:center}
+.stepper .value{flex:1; text-align:center; min-width:0}
+.stepper .value .n{font-size:34px; font-weight:750; line-height:1.05; font-variant-numeric:tabular-nums; display:block}
+.stepper .value .lbl{font-size:12px; letter-spacing:.06em; text-transform:uppercase; display:block; min-height:15px}
+.stepper .clear{flex:0 0 44px; height:44px; padding:0; font-size:17px; align-self:center; background:transparent; border-color:transparent; color:var(--muted)}
+.s-ace{color:var(--ace)} .s-eagle{color:var(--eagle)} .s-birdie{color:var(--birdie)}
+.s-par{color:var(--par)} .s-bogey{color:var(--bogey)} .s-double{color:var(--double)}
+.s-none{color:var(--muted)}
+
+.navbar{
+  position:sticky; bottom:0; margin-top:auto; display:flex; gap:10px; align-items:center;
+  padding:10px 0 calc(10px + env(safe-area-inset-bottom));
+  background:linear-gradient(to top, var(--bg) 72%, transparent);
+}
+.navbar button{flex:1}
+.navbar .pos{flex:0 0 auto; font-variant-numeric:tabular-nums; font-weight:640; color:var(--muted); font-size:14px; padding:0 4px}
+
+/* ---------- Scorekarte ---------- */
+.table-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface)}
+table.card-table{border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums}
+table.card-table th, table.card-table td{
+  padding:7px 4px; text-align:center; font-size:14px; border-bottom:1px solid var(--line); min-width:30px;
+}
+table.card-table thead th{font-size:11px; color:var(--muted); font-weight:600; position:sticky; top:0; background:var(--surface)}
+table.card-table th.name-col, table.card-table td.name-col{
+  text-align:left; position:sticky; left:0; background:var(--surface); z-index:1;
+  min-width:74px; max-width:104px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  border-right:1px solid var(--line); padding-left:10px;
+}
+table.card-table tr.par-row td, table.card-table tr.par-row th{background:var(--sunken); color:var(--muted); font-size:13px}
+table.card-table tr.par-row td.name-col, table.card-table tr.par-row th.name-col{background:var(--sunken)}
+table.card-table td.sum{font-weight:700; background:var(--surface-2)}
+table.card-table tr.par-row td.sum{background:var(--sunken)}
+table.card-table td.empty-cell{color:var(--line)}
+.par-editable{cursor:pointer}
+
+/* ---------- Ergebnis ---------- */
+.rank{display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line)}
+.rank:last-child{border-bottom:none}
+.rank .pos{flex:0 0 30px; font-size:19px; font-weight:750; text-align:center; color:var(--muted); font-variant-numeric:tabular-nums}
+.rank.win .pos{color:var(--accent)}
+.rank .who{flex:1; min-width:0}
+.rank .who .n{display:block}
+.rank .who .small{display:block}
+.rank .who .n{font-weight:640}
+.rank .tot{text-align:right; font-variant-numeric:tabular-nums}
+.rank .tot .strokes{font-size:21px; font-weight:750; display:block; line-height:1.1}
+.rank .tot .rel{font-size:13px; color:var(--muted)}
+.chips{display:flex; flex-wrap:wrap; gap:5px; margin-top:5px}
+.chip{font-size:12px; padding:2px 8px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line)}
+
+.notice{background:var(--surface-2); border:1px solid var(--line); border-left:4px solid var(--danger);
+  border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:14px}
+
+/* ---------- Selbsttest ---------- */
+.test{padding:10px 12px; border-bottom:1px solid var(--line); font-size:14px; display:flex; gap:10px}
+.test .mark{flex:0 0 20px; font-weight:700}
+.test.pass .mark{color:var(--accent)} .test.fail .mark{color:var(--danger)}
+.test.fail{background:color-mix(in srgb, var(--danger) 10%, transparent)}
+.test code{font-size:12px; color:var(--muted); display:block; word-break:break-word}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+"use strict";
+
+/* =========================================================================
+   Modell und reine Rechenfunktionen
+   -------------------------------------------------------------------------
+   Alles hier ist frei von DOM und localStorage, damit der Selbsttest
+   (?selftest=1) es direkt pruefen kann.
+   ========================================================================= */
+
+const HOLES = 18;
+const MIN_STROKES = 1;
+const MAX_STROKES = 20;
+const MIN_PAR = 3;
+const MAX_PAR = 6;
+const MAX_PLAYERS = 6;
+const DEFAULT_PARS = [4,4,3,5,4,4,3,4,5, 4,3,4,5,4,4,3,4,5]; // Summe 72
+
+function uid(){
+  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+
+function todayISO(){
+  const d = new Date();
+  const p = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+
+function makePlayer(name){
+  return { id: uid(), name: name || "" };
+}
+
+function makeRound(courseName, date, players, pars){
+  const round = {
+    id: uid(),
+    courseName: courseName || "",
+    date: date || todayISO(),
+    pars: (pars || DEFAULT_PARS).slice(0, HOLES),
+    players: players.map(p => ({ id: p.id || uid(), name: p.name })),
+    strokes: {},
+    completedAt: null
+  };
+  for (const p of round.players) round.strokes[p.id] = new Array(HOLES).fill(null);
+  return round;
+}
+
+/* Gleicht eine geladene Runde an das erwartete Format an: fehlende Bahnen
+   auffuellen, zu lange Arrays kappen, Muell zu null machen. Laeuft ueber
+   alles, was aus dem localStorage kommt -- da steht potentiell eine aeltere
+   Version der App drin. */
+function normalizeRound(raw){
+  if (!raw || typeof raw !== "object") return null;
+
+  const pars = new Array(HOLES);
+  for (let i = 0; i < HOLES; i++){
+    const v = Array.isArray(raw.pars) ? Number(raw.pars[i]) : NaN;
+    pars[i] = Number.isFinite(v) ? clamp(Math.round(v), MIN_PAR, MAX_PAR) : DEFAULT_PARS[i];
+  }
+
+  const players = Array.isArray(raw.players)
+    ? raw.players.filter(p => p && p.id).map(p => ({ id: String(p.id), name: String(p.name || "") }))
+    : [];
+  if (!players.length) return null;
+
+  const strokes = {};
+  for (const p of players){
+    const src = raw.strokes && Array.isArray(raw.strokes[p.id]) ? raw.strokes[p.id] : [];
+    const out = new Array(HOLES);
+    for (let i = 0; i < HOLES; i++){
+      const v = Number(src[i]);
+      out[i] = Number.isFinite(v) && v > 0 ? clamp(Math.round(v), MIN_STROKES, MAX_STROKES) : null;
+    }
+    strokes[p.id] = out;
+  }
+
+  return {
+    id: String(raw.id || uid()),
+    courseName: String(raw.courseName || ""),
+    date: String(raw.date || todayISO()),
+    pars, players, strokes,
+    completedAt: raw.completedAt ? String(raw.completedAt) : null
+  };
+}
+
+function clamp(n, lo, hi){ return Math.min(hi, Math.max(lo, n)); }
+
+/* Erster Tipp auf "+" setzt direkt auf Par -- das ist der haeufigste Wert
+   und spart auf der Bahn drei bis vier Tipper. */
+function bumpStroke(current, par, delta){
+  if (current == null) return clamp(delta > 0 ? par : par - 1, MIN_STROKES, MAX_STROKES);
+  return clamp(current + delta, MIN_STROKES, MAX_STROKES);
+}
+
+function holesPlayed(round, playerId){
+  return (round.strokes[playerId] || []).filter(v => v != null).length;
+}
+
+function totalStrokes(round, playerId, from = 0, to = HOLES){
+  let sum = 0;
+  const s = round.strokes[playerId] || [];
+  for (let i = from; i < to; i++) if (s[i] != null) sum += s[i];
+  return sum;
+}
+
+/* Par nur der tatsaechlich gespielten Bahnen -- sonst steht man nach Bahn 1
+   mit -68 da. */
+function playedPar(round, playerId, from = 0, to = HOLES){
+  let sum = 0;
+  const s = round.strokes[playerId] || [];
+  for (let i = from; i < to; i++) if (s[i] != null) sum += round.pars[i];
+  return sum;
+}
+
+function toPar(round, playerId, from = 0, to = HOLES){
+  return totalStrokes(round, playerId, from, to) - playedPar(round, playerId, from, to);
+}
+
+function scoreLabel(strokes, par){
+  if (strokes == null) return { key: "none", label: "", cls: "s-none" };
+  if (strokes === 1) return { key: "ace", label: "Hole-in-One", cls: "s-ace" };
+  const d = strokes - par;
+  if (d <= -3) return { key: "eagle", label: "Albatros", cls: "s-eagle" };
+  if (d === -2) return { key: "eagle", label: "Eagle", cls: "s-eagle" };
+  if (d === -1) return { key: "birdie", label: "Birdie", cls: "s-birdie" };
+  if (d === 0)  return { key: "par", label: "Par", cls: "s-par" };
+  if (d === 1)  return { key: "bogey", label: "Bogey", cls: "s-bogey" };
+  if (d === 2)  return { key: "double", label: "Doppelbogey", cls: "s-double" };
+  return { key: "double", label: "+" + d, cls: "s-double" };
+}
+
+function scoreCounts(round, playerId){
+  const counts = { ace: 0, eagle: 0, birdie: 0, par: 0, bogey: 0, double: 0 };
+  const s = round.strokes[playerId] || [];
+  for (let i = 0; i < HOLES; i++){
+    if (s[i] == null) continue;
+    counts[scoreLabel(s[i], round.pars[i]).key]++;
+  }
+  return counts;
+}
+
+function leaderboard(round){
+  return round.players
+    .map(p => ({
+      id: p.id,
+      name: p.name,
+      strokes: totalStrokes(round, p.id),
+      toPar: toPar(round, p.id),
+      played: holesPlayed(round, p.id)
+    }))
+    .sort((a, b) =>
+      a.toPar - b.toPar ||
+      a.strokes - b.strokes ||
+      b.played - a.played ||
+      a.name.localeCompare(b.name, "de")
+    );
+}
+
+function roundProgress(round){
+  return Math.max(0, ...round.players.map(p => holesPlayed(round, p.id)));
+}
+
+function isRoundEmpty(round){
+  return roundProgress(round) === 0;
+}
+
+function fmtToPar(n){
+  if (n === 0) return "E";
+  return (n > 0 ? "+" : "-") + Math.abs(n);
+}
+
+function fmtDate(iso){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+  return m ? m[3] + "." + m[2] + "." + m[1] : (iso || "");
+}
+
+/* =========================================================================
+   Speicherung
+   ========================================================================= */
+
+const STORAGE_KEY = "swing-golf:v1";
+
+function serialize(state){
+  return JSON.stringify({
+    version: 1,
+    rounds: state.rounds,
+    activeId: state.activeId
+  });
+}
+
+function deserialize(raw){
+  const empty = { rounds: [], activeId: null };
+  if (!raw) return empty;
+  let data;
+  try { data = JSON.parse(raw); } catch { return empty; }
+  if (!data || !Array.isArray(data.rounds)) return empty;
+  const rounds = data.rounds.map(normalizeRound).filter(Boolean);
+  const activeId = rounds.some(r => r.id === data.activeId) ? data.activeId : null;
+  return { rounds, activeId };
+}
+
+function loadState(){
+  try { return deserialize(localStorage.getItem(STORAGE_KEY)); }
+  catch { return { rounds: [], activeId: null }; }
+}
+
+/* Gibt false zurueck, wenn nicht geschrieben werden konnte (privater Modus,
+   volles Kontingent). Die App laeuft dann weiter, nur ohne Historie. */
+function saveState(state){
+  try { localStorage.setItem(STORAGE_KEY, serialize(state)); return true; }
+  catch { return false; }
+}
+
+/* =========================================================================
+   App-Zustand
+   ========================================================================= */
+
+const state = {
+  view: "home",        // home | setup | play | summary
+  rounds: [],
+  activeId: null,
+  draft: null,         // Runde im Aufbau (noch nicht in rounds)
+  hole: 0,             // 0-basierter Bahnindex
+  table: false,        // Scorekarte statt Bahn-Eingabe
+  storageFailed: false
+};
+
+const root = document.getElementById("app");
+
+function activeRound(){
+  return state.rounds.find(r => r.id === state.activeId) || null;
+}
+
+function persist(){
+  const ok = saveState(state);
+  state.storageFailed = !ok;
+}
+
+function firstOpenHole(round){
+  for (let i = 0; i < HOLES; i++){
+    if (round.players.some(p => round.strokes[p.id][i] == null)) return i;
+  }
+  return HOLES - 1;
+}
+
+/* =========================================================================
+   Rendering
+   ========================================================================= */
+
+const esc = s => String(s).replace(/[&<>"']/g, c =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function render(){
+  let html = "";
+  if (state.storageFailed){
+    html += `<div class="notice">Diese Runde kann nicht gespeichert werden &ndash; der Browser
+      verweigert den Speicher (privater Modus?). Eintragen funktioniert, aber nach dem Schlie&szlig;en
+      ist die Runde weg.</div>`;
+  }
+  if (state.view === "setup") html += viewSetup();
+  else if (state.view === "play") html += viewPlay();
+  else if (state.view === "summary") html += viewSummary();
+  else html += viewHome();
+  root.innerHTML = html;
+}
+
+function topbar(title, sub, leftBtn, rightBtn){
+  return `<div class="topbar">
+    ${leftBtn || ""}
+    <h1>${esc(title)}${sub ? `<span class="sub">${esc(sub)}</span>` : ""}</h1>
+    ${rightBtn || ""}
+  </div>`;
+}
+
+/* ---------- Startseite ---------- */
+
+function viewHome(){
+  const running = state.rounds.filter(r => !r.completedAt);
+  const done = state.rounds.filter(r => r.completedAt);
+  const sortByDate = (a, b) => (b.date || "").localeCompare(a.date || "");
+  running.sort(sortByDate);
+  done.sort(sortByDate);
+
+  let html = `<div class="screen">` + topbar("Swing Golf", "18 Bahnen, lokal gespeichert");
+
+  html += `<button class="btn-primary" data-act="new" style="width:100%; margin-bottom:16px">
+    Neue Runde starten</button>`;
+
+  if (running.length){
+    html += `<div class="card"><h2>Laufend</h2><div class="stack">`;
+    for (const r of running) html += roundItem(r, true);
+    html += `</div></div>`;
+  }
+
+  html += `<div class="card"><h2>Gespielte Runden</h2>`;
+  if (!done.length){
+    html += `<div class="empty">Noch keine Runde abgeschlossen.</div>`;
+  } else {
+    html += `<div class="stack">`;
+    for (const r of done) html += roundItem(r, false);
+    html += `</div>`;
+  }
+  html += `</div>`;
+
+  html += `<p class="small muted" style="padding:0 4px">
+    Alle Runden liegen nur auf diesem Ger&auml;t &ndash; nichts wird hochgeladen.</p>`;
+  return html + `</div>`;
+}
+
+function roundItem(round, isRunning){
+  const board = leaderboard(round);
+  const top = board[0];
+  const played = roundProgress(round);
+  const title = round.courseName || "Ohne Platznamen";
+  const sub = isRunning
+    ? `${fmtDate(round.date)} &middot; Bahn ${Math.min(played + 1, HOLES)} von ${HOLES}`
+    : `${fmtDate(round.date)} &middot; ${top ? esc(top.name) + " gewinnt" : ""}`;
+
+  return `<div class="row" style="gap:6px">
+    <button class="round-item grow" data-act="open" data-id="${round.id}">
+      <span class="meta">
+        <span class="title truncate">${esc(title)}</span>
+        <span class="small muted truncate" style="display:block">${sub}</span>
+      </span>
+      ${top && played ? `<span class="score">${top.strokes} <span class="muted small">(${fmtToPar(top.toPar)})</span></span>` : ""}
+      ${isRunning ? `<span class="badge">weiter</span>` : ""}
+    </button>
+    <button class="btn-ghost btn-danger" data-act="del" data-id="${round.id}"
+      aria-label="Runde l&ouml;schen" style="flex:0 0 46px; padding:0">&#10005;</button>
+  </div>`;
+}
+
+/* ---------- Setup ---------- */
+
+function viewSetup(){
+  const d = state.draft;
+  const parTotal = d.pars.reduce((a, b) => a + b, 0);
+
+  let html = `<div class="screen">` + topbar("Neue Runde", null,
+    `<button class="btn-ghost" data-act="home">Zur&uuml;ck</button>`);
+
+  html += `<div class="card"><h2>Platz</h2><div class="stack">
+    <input type="text" data-field="courseName" value="${esc(d.courseName)}"
+      placeholder="Platzname" autocomplete="off" enterkeyhint="done">
+    <input type="date" data-field="date" value="${esc(d.date)}">
+  </div></div>`;
+
+  html += `<div class="card"><h2>Spieler</h2><div class="stack">`;
+  d.players.forEach((p, i) => {
+    html += `<div class="row">
+      <input class="grow" type="text" data-field="player" data-id="${p.id}"
+        value="${esc(p.name)}" placeholder="Spieler ${i + 1}" autocomplete="off" enterkeyhint="done">
+      <button class="btn-ghost btn-danger" data-act="rm-player" data-id="${p.id}"
+        aria-label="Spieler entfernen" style="flex:0 0 46px; padding:0"
+        ${d.players.length <= 1 ? "disabled" : ""}>&#10005;</button>
+    </div>`;
+  });
+  if (d.players.length < MAX_PLAYERS){
+    html += `<button data-act="add-player">+ Spieler hinzuf&uuml;gen</button>`;
+  } else {
+    html += `<p class="small muted" style="margin:0">Maximal ${MAX_PLAYERS} Spieler.</p>`;
+  }
+  html += `</div></div>`;
+
+  html += `<div class="card">
+    <div class="spread" style="margin-bottom:10px">
+      <h2 style="margin:0">Par je Bahn</h2>
+      <span class="small muted">Gesamt ${parTotal}</span>
+    </div>
+    <div class="par-grid">`;
+  d.pars.forEach((par, i) => {
+    html += `<button class="par-cell" data-act="cycle-par" data-hole="${i}"
+      aria-label="Bahn ${i + 1}, Par ${par}, tippen zum &Auml;ndern">
+      <span class="hole">${i + 1}</span><span class="val">${par}</span></button>`;
+  });
+  html += `</div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn-ghost small grow" data-act="reset-par">Standard (72) wiederherstellen</button>
+    </div>
+    <p class="small muted" style="margin:8px 0 0">Tippen schaltet ${MIN_PAR}&rarr;${MAX_PAR}&rarr;${MIN_PAR} weiter.</p>
+  </div>`;
+
+  html += `<button class="btn-primary" data-act="start" style="width:100%">Runde starten</button>`;
+  return html + `</div>`;
+}
+
+/* ---------- Bahn-Eingabe und Scorekarte ---------- */
+
+function viewPlay(){
+  const round = activeRound();
+  if (!round){ state.view = "home"; return viewHome(); }
+  return state.table ? playTable(round) : playHole(round);
+}
+
+function playHole(round){
+  const i = state.hole;
+  const par = round.pars[i];
+
+  let html = `<div class="screen">` + topbar(
+    round.courseName || "Runde", fmtDate(round.date),
+    `<button class="btn-ghost" data-act="home">Pause</button>`,
+    `<button class="btn-ghost" data-act="toggle-table">Karte</button>`);
+
+  html += `<div class="hole-head">
+    <div class="no">Bahn ${i + 1} von ${HOLES}</div>
+    <div class="par">Par ${par}</div>
+  </div>`;
+
+  for (const p of round.players){
+    const v = round.strokes[p.id][i];
+    const lbl = scoreLabel(v, par);
+    const running = toPar(round, p.id);
+    html += `<div class="player-card">
+      <div class="name"><span class="truncate">${esc(p.name)}</span>
+        <span class="running">Runde ${fmtToPar(running)}</span></div>
+      <div class="stepper">
+        <button class="step" data-act="stroke" data-id="${p.id}" data-delta="-1"
+          aria-label="Ein Schlag weniger f&uuml;r ${esc(p.name)}">&minus;</button>
+        <div class="value">
+          <span class="n ${lbl.cls}">${v == null ? "&ndash;" : v}</span>
+          <span class="lbl ${lbl.cls}">${lbl.label}</span>
+        </div>
+        <button class="step" data-act="stroke" data-id="${p.id}" data-delta="1"
+          aria-label="Ein Schlag mehr f&uuml;r ${esc(p.name)}">+</button>
+        <button class="clear" data-act="clear-stroke" data-id="${p.id}"
+          aria-label="Eintrag f&uuml;r ${esc(p.name)} l&ouml;schen"
+          ${v == null ? "disabled" : ""}>&#8635;</button>
+      </div>
+    </div>`;
+  }
+
+  const last = i === HOLES - 1;
+  html += `<div class="navbar">
+    <button data-act="prev-hole" ${i === 0 ? "disabled" : ""}>&larr; Bahn</button>
+    <span class="pos">${i + 1}/${HOLES}</span>
+    ${last
+      ? `<button class="btn-primary" data-act="finish">Runde beenden</button>`
+      : `<button data-act="next-hole">Bahn &rarr;</button>`}
+  </div>`;
+  return html + `</div>`;
+}
+
+function playTable(round){
+  let html = `<div class="screen">` + topbar(
+    round.courseName || "Runde", "Scorekarte",
+    `<button class="btn-ghost" data-act="home">Pause</button>`,
+    `<button class="btn-ghost" data-act="toggle-table">${round.completedAt ? "Ergebnis" : "Bahn"}</button>`);
+
+  const head = [];
+  for (let i = 0; i < 9; i++) head.push(`<th>${i + 1}</th>`);
+  head.push(`<th>Out</th>`);
+  for (let i = 9; i < HOLES; i++) head.push(`<th>${i + 1}</th>`);
+  head.push(`<th>In</th><th>Ges</th>`);
+
+  const parCells = [];
+  for (let i = 0; i < 9; i++) parCells.push(parCell(round, i));
+  parCells.push(`<td class="sum">${sum(round.pars, 0, 9)}</td>`);
+  for (let i = 9; i < HOLES; i++) parCells.push(parCell(round, i));
+  parCells.push(`<td class="sum">${sum(round.pars, 9, HOLES)}</td>`);
+  parCells.push(`<td class="sum">${sum(round.pars, 0, HOLES)}</td>`);
+
+  let body = "";
+  for (const p of round.players){
+    const s = round.strokes[p.id];
+    const cells = [];
+    for (let i = 0; i < 9; i++) cells.push(strokeCell(s[i], round.pars[i]));
+    cells.push(`<td class="sum">${totalStrokes(round, p.id, 0, 9) || "&middot;"}</td>`);
+    for (let i = 9; i < HOLES; i++) cells.push(strokeCell(s[i], round.pars[i]));
+    cells.push(`<td class="sum">${totalStrokes(round, p.id, 9, HOLES) || "&middot;"}</td>`);
+    cells.push(`<td class="sum">${totalStrokes(round, p.id) || "&middot;"}</td>`);
+    body += `<tr><th class="name-col" scope="row">${esc(p.name)}</th>${cells.join("")}</tr>`;
+  }
+
+  html += `<div class="table-wrap"><table class="card-table">
+    <thead><tr><th class="name-col">Bahn</th>${head.join("")}</tr></thead>
+    <tbody>
+      <tr class="par-row"><th class="name-col" scope="row">Par</th>${parCells.join("")}</tr>
+      ${body}
+    </tbody></table></div>`;
+
+  html += `<div class="card" style="margin-top:12px"><div class="stack">`;
+  for (const e of leaderboard(round)){
+    html += `<div class="spread"><span class="truncate">${esc(e.name)}</span>
+      <span style="font-variant-numeric:tabular-nums"><strong>${e.strokes || 0}</strong>
+      <span class="muted small">${e.played ? fmtToPar(e.toPar) : "&ndash;"}</span></span></div>`;
+  }
+  html += `</div></div>`;
+  html += `<p class="small muted" style="padding:0 4px">Seitlich wischen f&uuml;r Bahn 10&ndash;18 und die Summen.
+    Par antippen, um ihn zu korrigieren.</p>`;
+
+  if (!round.completedAt){
+    html += `<div class="navbar"><button class="btn-primary" data-act="finish">Runde beenden</button></div>`;
+  } else {
+    html += `<div class="navbar"><button data-act="summary">Zur Auswertung</button></div>`;
+  }
+  return html + `</div>`;
+}
+
+function parCell(round, i){
+  return `<td class="par-editable" data-act="cycle-par-live" data-hole="${i}">${round.pars[i]}</td>`;
+}
+
+function strokeCell(v, par){
+  if (v == null) return `<td class="empty-cell">&middot;</td>`;
+  return `<td class="${scoreLabel(v, par).cls}"><strong>${v}</strong></td>`;
+}
+
+function sum(arr, from, to){
+  let s = 0;
+  for (let i = from; i < to; i++) s += arr[i];
+  return s;
+}
+
+/* ---------- Auswertung ---------- */
+
+const COUNT_LABELS = [
+  ["ace", "Hole-in-One"], ["eagle", "Eagle"], ["birdie", "Birdie"],
+  ["par", "Par"], ["bogey", "Bogey"], ["double", "Doppelbogey+"]
+];
+
+function viewSummary(){
+  const round = activeRound();
+  if (!round){ state.view = "home"; return viewHome(); }
+  const board = leaderboard(round);
+
+  let html = `<div class="screen">` + topbar(
+    round.courseName || "Runde", fmtDate(round.date),
+    `<button class="btn-ghost" data-act="home">Fertig</button>`);
+
+  html += `<div class="card"><h2>Endstand</h2>`;
+  board.forEach((e, idx) => {
+    const counts = scoreCounts(round, e.id);
+    const chips = COUNT_LABELS
+      .filter(([k]) => counts[k] > 0)
+      .map(([k, label]) => `<span class="chip">${counts[k]}&times; ${label}</span>`)
+      .join("");
+    html += `<div class="rank${idx === 0 ? " win" : ""}">
+      <span class="pos">${idx + 1}</span>
+      <span class="who">
+        <span class="n truncate">${esc(e.name)}</span>
+        <span class="small muted">${e.played} von ${HOLES} Bahnen</span>
+        ${chips ? `<span class="chips">${chips}</span>` : ""}
+      </span>
+      <span class="tot"><span class="strokes">${e.strokes}</span>
+        <span class="rel">${fmtToPar(e.toPar)}</span></span>
+    </div>`;
+  });
+  html += `</div>`;
+
+  html += `<div class="stack">
+    <button data-act="show-card">Scorekarte ansehen</button>
+    <button data-act="reopen">Runde wieder &ouml;ffnen</button>
+    <button class="btn-primary" data-act="home">Zur &Uuml;bersicht</button>
+  </div>`;
+  return html + `</div>`;
+}
+
+/* =========================================================================
+   Interaktion
+   ========================================================================= */
+
+const ACTIONS = {
+  new(){
+    state.draft = makeRound("", todayISO(), [makePlayer(""), makePlayer("")], DEFAULT_PARS);
+    state.view = "setup";
+  },
+
+  home(){
+    state.view = "home";
+    state.table = false;
+  },
+
+  open(el){
+    const round = state.rounds.find(r => r.id === el.dataset.id);
+    if (!round) return;
+    state.activeId = round.id;
+    state.table = false;
+    state.hole = firstOpenHole(round);
+    state.view = round.completedAt ? "summary" : "play";
+    persist();
+  },
+
+  del(el){
+    const round = state.rounds.find(r => r.id === el.dataset.id);
+    if (!round) return;
+    const name = round.courseName || "diese Runde";
+    if (!isRoundEmpty(round) && !confirm(`"${name}" vom ${fmtDate(round.date)} löschen?`)) return;
+    state.rounds = state.rounds.filter(r => r.id !== round.id);
+    if (state.activeId === round.id) state.activeId = null;
+    persist();
+  },
+
+  "add-player"(){
+    if (state.draft.players.length >= MAX_PLAYERS) return;
+    state.draft.players.push(makePlayer(""));
+  },
+
+  "rm-player"(el){
+    if (state.draft.players.length <= 1) return;
+    state.draft.players = state.draft.players.filter(p => p.id !== el.dataset.id);
+  },
+
+  "cycle-par"(el){
+    const i = Number(el.dataset.hole);
+    state.draft.pars[i] = state.draft.pars[i] >= MAX_PAR ? MIN_PAR : state.draft.pars[i] + 1;
+  },
+
+  "cycle-par-live"(el){
+    const round = activeRound();
+    if (!round) return;
+    const i = Number(el.dataset.hole);
+    round.pars[i] = round.pars[i] >= MAX_PAR ? MIN_PAR : round.pars[i] + 1;
+    persist();
+  },
+
+  "reset-par"(){
+    state.draft.pars = DEFAULT_PARS.slice();
+  },
+
+  start(){
+    const d = state.draft;
+    d.players.forEach((p, i) => { if (!p.name.trim()) p.name = "Spieler " + (i + 1); });
+    const round = makeRound(d.courseName.trim(), d.date, d.players, d.pars);
+    state.rounds.push(round);
+    state.activeId = round.id;
+    state.draft = null;
+    state.hole = 0;
+    state.table = false;
+    state.view = "play";
+    persist();
+  },
+
+  stroke(el){
+    const round = activeRound();
+    if (!round) return;
+    const id = el.dataset.id;
+    const i = state.hole;
+    round.strokes[id][i] = bumpStroke(round.strokes[id][i], round.pars[i], Number(el.dataset.delta));
+    persist();
+  },
+
+  "clear-stroke"(el){
+    const round = activeRound();
+    if (!round) return;
+    round.strokes[el.dataset.id][state.hole] = null;
+    persist();
+  },
+
+  "prev-hole"(){ state.hole = Math.max(0, state.hole - 1); },
+  "next-hole"(){ state.hole = Math.min(HOLES - 1, state.hole + 1); },
+
+  "toggle-table"(){
+    const round = activeRound();
+    if (state.table && round && round.completedAt){ state.view = "summary"; state.table = false; return; }
+    state.table = !state.table;
+  },
+
+  "show-card"(){ state.table = true; state.view = "play"; },
+
+  summary(){ state.table = false; state.view = "summary"; },
+
+  finish(){
+    const round = activeRound();
+    if (!round) return;
+    const open = HOLES - roundProgress(round);
+    if (open > 0 && !confirm(`${open} Bahn${open === 1 ? "" : "en"} ohne Eintrag. Runde trotzdem beenden?`)) return;
+    round.completedAt = new Date().toISOString();
+    state.table = false;
+    state.view = "summary";
+    persist();
+  },
+
+  reopen(){
+    const round = activeRound();
+    if (!round) return;
+    round.completedAt = null;
+    state.hole = firstOpenHole(round);
+    state.view = "play";
+    persist();
+  }
+};
+
+root.addEventListener("click", ev => {
+  const el = ev.target.closest("[data-act]");
+  if (!el || !root.contains(el)) return;
+  const fn = ACTIONS[el.dataset.act];
+  if (!fn) return;
+  ev.preventDefault();
+  fn(el);
+  render();
+});
+
+/* Texteingaben aktualisieren das Modell ohne Neuzeichnen -- sonst verliert
+   das Feld bei jedem Tastendruck den Fokus. */
+root.addEventListener("input", ev => {
+  const el = ev.target.closest("[data-field]");
+  if (!el || !state.draft) return;
+  const field = el.dataset.field;
+  if (field === "player"){
+    const p = state.draft.players.find(p => p.id === el.dataset.id);
+    if (p) p.name = el.value;
+  } else if (field === "courseName" || field === "date"){
+    state.draft[field] = el.value;
+  }
+});
+
+/* =========================================================================
+   Selbsttest: index.html?selftest=1
+   ========================================================================= */
+
+function runSelfTest(){
+  const results = [];
+  const check = (name, fn) => {
+    try {
+      const detail = fn();
+      results.push({ name, ok: true, detail: detail || "" });
+    } catch (err){
+      results.push({ name, ok: false, detail: String(err && err.message || err) });
+    }
+  };
+  const eq = (actual, expected, what) => {
+    const a = JSON.stringify(actual), b = JSON.stringify(expected);
+    if (a !== b) throw new Error(`${what || ""} erwartet ${b}, war ${a}`);
+  };
+
+  const demo = () => {
+    const r = makeRound("Testplatz", "2026-05-01",
+      [{ id: "a", name: "Anna" }, { id: "b", name: "Ben" }], DEFAULT_PARS);
+    // Anna: Bahn 1 Birdie (3 auf Par 4), Bahn 2 Par, Bahn 3 Doppelbogey (5 auf Par 3)
+    r.strokes.a[0] = 3; r.strokes.a[1] = 4; r.strokes.a[2] = 5;
+    // Ben: Bahn 1 Bogey, Bahn 2 offen, Bahn 3 Par
+    r.strokes.b[0] = 5; r.strokes.b[2] = 3;
+    return r;
+  };
+
+  check("DEFAULT_PARS: 18 Bahnen, Summe 72", () => {
+    eq(DEFAULT_PARS.length, HOLES, "Anzahl Bahnen");
+    eq(sum(DEFAULT_PARS, 0, HOLES), 72, "Par gesamt");
+    return "Out " + sum(DEFAULT_PARS, 0, 9) + " / In " + sum(DEFAULT_PARS, 9, 18);
+  });
+
+  check("makeRound legt 18 leere Bahnen je Spieler an", () => {
+    const r = makeRound("X", "2026-01-01", [makePlayer("A")], DEFAULT_PARS);
+    const s = r.strokes[r.players[0].id];
+    eq(s.length, HOLES, "Bahnen");
+    eq(s.every(v => v === null), true, "alle leer");
+  });
+
+  check("totalStrokes ignoriert leere Bahnen", () => {
+    eq(totalStrokes(demo(), "a"), 12, "Anna");
+    eq(totalStrokes(demo(), "b"), 8, "Ben");
+  });
+
+  check("toPar rechnet nur gespielte Bahnen", () => {
+    const r = demo();
+    // Anna: 12 Schlaege auf Par 4+4+3 = 11  ->  +1
+    eq(toPar(r, "a"), 1, "Anna");
+    // Ben: 8 Schlaege auf Par 4+3 = 7  ->  +1
+    eq(toPar(r, "b"), 1, "Ben");
+    eq(holesPlayed(r, "b"), 2, "Bens gespielte Bahnen");
+  });
+
+  check("Out + In = Gesamt", () => {
+    const r = demo();
+    for (const p of r.players){
+      const out = totalStrokes(r, p.id, 0, 9);
+      const inn = totalStrokes(r, p.id, 9, HOLES);
+      eq(out + inn, totalStrokes(r, p.id), p.name);
+    }
+  });
+
+  check("scoreLabel bildet alle Faelle ab", () => {
+    eq(scoreLabel(1, 4).key, "ace", "Hole-in-One");
+    eq(scoreLabel(1, 3).key, "ace", "Ass auf Par 3");
+    eq(scoreLabel(2, 5).key, "eagle", "Albatros");
+    eq(scoreLabel(3, 5).key, "eagle", "Eagle");
+    eq(scoreLabel(3, 4).key, "birdie", "Birdie");
+    eq(scoreLabel(4, 4).key, "par", "Par");
+    eq(scoreLabel(5, 4).key, "bogey", "Bogey");
+    eq(scoreLabel(6, 4).key, "double", "Doppelbogey");
+    eq(scoreLabel(9, 4).key, "double", "Triple+");
+    eq(scoreLabel(null, 4).key, "none", "leer");
+  });
+
+  check("scoreCounts zaehlt je Kategorie", () => {
+    eq(scoreCounts(demo(), "a"), { ace: 0, eagle: 0, birdie: 1, par: 1, bogey: 0, double: 1 });
+    eq(scoreCounts(demo(), "b"), { ace: 0, eagle: 0, birdie: 0, par: 1, bogey: 1, double: 0 });
+  });
+
+  check("leaderboard sortiert nach ToPar, dann Schlaegen", () => {
+    const r = demo();
+    // Gleichstand bei +1 -> weniger Schlaege zuerst -> Ben (8) vor Anna (12)
+    eq(leaderboard(r).map(e => e.name), ["Ben", "Anna"], "Reihenfolge bei Gleichstand");
+    r.strokes.a[3] = 3;                       // Bahn 4 ist Par 5 -> Eagle, Anna auf -1
+    eq(leaderboard(r)[0].name, "Anna", "Anna fuehrt nach Eagle");
+    eq(leaderboard(r)[0].toPar, -1, "Annas Stand");
+  });
+
+  check("bumpStroke: erster Tipp landet auf Par, Grenzen halten", () => {
+    eq(bumpStroke(null, 4, 1), 4, "leer + 1");
+    eq(bumpStroke(null, 4, -1), 3, "leer - 1");
+    eq(bumpStroke(4, 4, 1), 5, "hoch");
+    eq(bumpStroke(1, 4, -1), 1, "Untergrenze");
+    eq(bumpStroke(MAX_STROKES, 4, 1), MAX_STROKES, "Obergrenze");
+    eq(bumpStroke(null, MIN_PAR, -1), MIN_STROKES + 1, "leer - 1 auf Par 3");
+  });
+
+  check("fmtToPar formatiert E / + / -", () => {
+    eq(fmtToPar(0), "E"); eq(fmtToPar(3), "+3"); eq(fmtToPar(-2), "-2");
+  });
+
+  check("normalizeRound repariert kaputte Daten", () => {
+    const r = normalizeRound({
+      id: "r1", courseName: "Alt", date: "2026-02-02",
+      pars: [4, 99, "3"],                                  // zu kurz, Unsinn, String
+      players: [{ id: "a", name: "Anna" }, { id: "x" }],     // Name fehlt
+      strokes: { a: [4, 0, "5", -2, null, 1000] }           // zu kurz, 0, String, negativ
+    });
+    eq(r.pars.length, HOLES, "Par-Laenge");
+    eq(r.pars[1], MAX_PAR, "99 auf Maximum geklemmt");
+    eq(r.pars[2], 3, "String zu Zahl");
+    eq(r.pars[5], DEFAULT_PARS[5], "fehlende Bahn aus Vorlage");
+    eq(r.strokes.a.slice(0, 6), [4, null, 5, null, null, MAX_STROKES], "Schlaege bereinigt");
+    eq(r.strokes.x.length, HOLES, "Spieler ohne Eintraege bekommt Array");
+    eq(r.players[1].name, "", "fehlender Name wird leer");
+  });
+
+  check("normalizeRound verwirft Muell", () => {
+    eq(normalizeRound(null), null, "null");
+    eq(normalizeRound({ players: [] }), null, "ohne Spieler");
+  });
+
+  check("Runde ueberlebt Serialisieren und Zurueckladen", () => {
+    const r = demo();
+    r.pars[0] = 5;
+    const back = deserialize(serialize({ rounds: [r], activeId: r.id }));
+    eq(back.rounds.length, 1, "eine Runde");
+    eq(back.activeId, r.id, "aktive Runde");
+    eq(back.rounds[0], r, "identischer Inhalt");
+  });
+
+  check("deserialize haelt Schrott aus", () => {
+    eq(deserialize(null).rounds, [], "leer");
+    eq(deserialize("{kein json").rounds, [], "kaputtes JSON");
+    eq(deserialize('{"rounds":"nein"}').rounds, [], "falscher Typ");
+    eq(deserialize('{"rounds":[],"activeId":"weg"}').activeId, null, "verwaiste activeId");
+  });
+
+  check("localStorage-Runde ueberlebt Speichern und Laden", () => {
+    const r = demo();
+    const ok = saveState({ rounds: [r], activeId: r.id });
+    if (!ok) return "uebersprungen: Browser erlaubt kein Schreiben";
+    const back = loadState();
+    eq(back.rounds[0].strokes.a[0], 3, "Annas Bahn 1");
+    localStorage.removeItem(STORAGE_KEY);
+    return "gespeichert und zurueckgelesen";
+  });
+
+  check("firstOpenHole findet die erste offene Bahn", () => {
+    const r = demo();
+    eq(firstOpenHole(r), 1, "Ben fehlt auf Bahn 2");
+    r.strokes.b[1] = 4;
+    eq(firstOpenHole(r), 3, "danach Bahn 4");
+  });
+
+  check("roundProgress zaehlt die weiteste Bahn", () => {
+    eq(roundProgress(demo()), 3, "Anna hat 3");
+    eq(isRoundEmpty(makeRound("X", "2026-01-01", [makePlayer("A")], DEFAULT_PARS)), true, "leere Runde");
+  });
+
+  const failed = results.filter(r => !r.ok).length;
+  root.innerHTML = `<div class="screen">
+    ${topbar("Selbsttest", `${results.length - failed} von ${results.length} bestanden`)}
+    <div class="card" style="padding:0; overflow:hidden">
+      ${results.map(r => `<div class="test ${r.ok ? "pass" : "fail"}">
+        <span class="mark">${r.ok ? "✓" : "✗"}</span>
+        <span class="grow">${esc(r.name)}${r.detail ? `<code>${esc(r.detail)}</code>` : ""}</span>
+      </div>`).join("")}
+    </div>
+    <p class="${failed ? "" : "muted"}" style="text-align:center; font-weight:700">
+      ${failed ? failed + " FEHLGESCHLAGEN" : "Alles grün"}</p>
+    <div class="stack"><a href="?" style="text-align:center">Zur App</a></div>
+  </div>`;
+  document.title = failed ? `Selbsttest: ${failed} fehlgeschlagen` : "Selbsttest: alles gruen";
+  return failed;
+}
+
+/* =========================================================================
+   Start
+   ========================================================================= */
+
+if (new URLSearchParams(location.search).has("selftest")){
+  runSelfTest();
+} else {
+  const stored = loadState();
+  state.rounds = stored.rounds;
+  state.activeId = stored.activeId;
+  const active = activeRound();
+  /* Direkt zurueck in die laufende Runde: iOS entlaedt die Seite zwischen
+     zwei Schlaegen regelmaessig, da will niemand jedes Mal neu navigieren. */
+  if (active && !active.completedAt){
+    state.hole = firstOpenHole(active);
+    state.view = "play";
+  }
+  render();
+}
+</script>
+</body>
+</html>
