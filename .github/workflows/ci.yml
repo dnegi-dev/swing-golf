@@ -84,6 +84,10 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
+      # contents: read ist noetig, sonst laeuft actions/checkout in ein 404:
+      # ein Job-permissions-Block ersetzt die Workflow-Ebene, er ergaenzt sie
+      # nicht -- was hier fehlt, steht auf none.
+      contents: read
       pages: write
       id-token: write
     environment:
