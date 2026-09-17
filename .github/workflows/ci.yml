@@ -1,8 +1,10 @@
 name: CI
 
 on:
+  # Feature-Branches deckt der pull_request-Trigger ab; beides zusammen
+  # wuerde jeden Commit doppelt bauen.
   push:
-    branches: ["**"]
+    branches: [main]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
