@@ -1,5 +1,7 @@
 # Swing Golf
 
+**→ https://dnegi-dev.github.io/swing-golf/**
+
 Scorecard für 18 Bahnen. Eine einzige HTML-Datei, kein Server, kein Build-Schritt,
 keine Anmeldung, keine externen Requests. Alle Runden liegen im `localStorage`
 des Geräts.
@@ -41,12 +43,12 @@ mehreren Geräten.
 offline und behält ihre Runden zuverlässig. Jeder Push auf `main` wird
 automatisch dorthin deployt.
 
-Die Adresse steht nach dem ersten erfolgreichen Deploy unter *Settings → Pages*
-und in der Ausgabe des `Pages`-Jobs; sie hat die Form
-`https://<owner>.github.io/<repo>/`. Voraussetzung ist einmalig
-*Settings → Pages → Build and deployment → Source: **GitHub Actions***. Für
-private Repos braucht Pages GitHub Pro — bei einem öffentlichen Repo geht es auf
-jedem Plan.
+Die Adresse ist **https://dnegi-dev.github.io/swing-golf/**. Jeder Push auf
+`main` deployt dorthin, sobald der Selbsttest grün ist.
+
+Eingerichtet ist das über *Settings → Pages → Build and deployment → Source:
+GitHub Actions*. Für ein privates Repo bräuchte Pages GitHub Pro; dieses Repo ist
+öffentlich, damit geht es auf jedem Plan.
 
 **Ohne Icon.** `index.html` per AirDrop, Mail oder Messenger aufs Gerät schicken,
 in der Dateien-App ablegen und von dort öffnen. Am Desktop reicht ein
