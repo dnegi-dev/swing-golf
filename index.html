@@ -13,73 +13,130 @@
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='38' fill='%230b4a32'/><circle cx='58' cy='130' r='20' fill='%23f6f8f6'/><path d='M112 32v116' stroke='%23f6f8f6' stroke-width='10' stroke-linecap='round'/><path d='M112 38l46 19-46 19z' fill='%23e04141'/></svg>">
 <style>
+/* =========================================================================
+   Farben und Masse. Hell ist die Grundlage, Dunkel haengt an data-theme;
+   "auto" laesst die Media Query entscheiden.
+   ========================================================================= */
 :root{
-  --bg:#eef2ee; --surface:#ffffff; --surface-2:#f4f7f4; --sunken:#e6ebe6;
-  --text:#132019; --muted:#5e6d64; --line:#d5ddd6;
-  --accent:#0f7a4a; --accent-press:#0b5f39; --on-accent:#ffffff;
-  --danger:#b3261e;
-  --ace:#7b1fa2; --eagle:#7b1fa2; --birdie:#c62828; --par:#41504a;
-  --bogey:#1f5fa8; --double:#0f3c6b;
-  --radius:14px;
-  --pad: max(14px, env(safe-area-inset-left)) max(14px, env(safe-area-inset-right));
+  --bg:#f6f7f4;          /* leicht warmes Off-White statt kaltem Grau */
+  --surface:#ffffff;
+  --sunken:#eef0ea;
+  --quiet:#f2f4ef;
+  --text:#1b241f;
+  --muted:#6b7870;
+  --line:#e3e7e0;        /* nur noch dort, wo eine Kante wirklich noetig ist */
+  --accent:#2f7d54;
+  --accent-soft:#e6f1ea;
+  --accent-press:#256544;
+  --on-accent:#ffffff;
+  --danger:#b3392f;
+  --ace:#8a3fb0; --eagle:#8a3fb0; --birdie:#c2453a; --par:#4a5a52;
+  --bogey:#2f6aa8; --double:#1d4470;
+  --r:16px;              /* Standardradius */
+  --r-lg:22px;
+  --shadow:0 1px 2px rgba(20,35,27,.05), 0 6px 18px rgba(20,35,27,.05);
+  --gap:14px;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0e1512; --surface:#18211c; --surface-2:#1f2a24; --sunken:#121a16;
-    --text:#e8efe9; --muted:#9baba2; --line:#2c3a32;
-    --accent:#2ea36b; --accent-press:#248a5b; --on-accent:#06120c;
-    --danger:#f2837c;
-    --ace:#d38bef; --eagle:#d38bef; --birdie:#ff8a80; --par:#b6c4bb;
-    --bogey:#7fb1ee; --double:#a9c9f2;
+    --bg:#111613; --surface:#1a211d; --sunken:#151b18; --quiet:#212a25;
+    --text:#e9efea; --muted:#9aa9a0; --line:#2a342e;
+    --accent:#4eb37c; --accent-soft:#1d3228; --accent-press:#3d9668; --on-accent:#07140d;
+    --danger:#f0867c;
+    --ace:#d79cf0; --eagle:#d79cf0; --birdie:#ff9188; --par:#b3c2b9;
+    --bogey:#7fb4ef; --double:#a8caf3;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.25);
   }
 }
 :root[data-theme="dark"]{
-  --bg:#0e1512; --surface:#18211c; --surface-2:#1f2a24; --sunken:#121a16;
-  --text:#e8efe9; --muted:#9baba2; --line:#2c3a32;
-  --accent:#2ea36b; --accent-press:#248a5b; --on-accent:#06120c;
-  --danger:#f2837c;
-  --ace:#d38bef; --eagle:#d38bef; --birdie:#ff8a80; --par:#b6c4bb;
-  --bogey:#7fb1ee; --double:#a9c9f2;
+  --bg:#111613; --surface:#1a211d; --sunken:#151b18; --quiet:#212a25;
+  --text:#e9efea; --muted:#9aa9a0; --line:#2a342e;
+  --accent:#4eb37c; --accent-soft:#1d3228; --accent-press:#3d9668; --on-accent:#07140d;
+  --danger:#f0867c;
+  --ace:#d79cf0; --eagle:#d79cf0; --birdie:#ff9188; --par:#b3c2b9;
+  --bogey:#7fb4ef; --double:#a8caf3;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.25);
 }
 
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{
   margin:0; background:var(--bg); color:var(--text);
-  font:16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  font:16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
   overscroll-behavior-y:contain;
 }
+h1,h2,h3{margin:0}
+
+/* ---------- Bedienelemente ---------- */
 button, input, select{font:inherit; color:inherit}
 button{
-  -webkit-appearance:none; appearance:none; border:1px solid var(--line);
-  background:var(--surface); border-radius:var(--radius); padding:12px 14px;
-  min-height:44px; cursor:pointer; touch-action:manipulation;
+  -webkit-appearance:none; appearance:none; border:none;
+  background:var(--surface); color:var(--text);
+  border-radius:var(--r); padding:13px 16px; min-height:48px;
+  cursor:pointer; touch-action:manipulation; font-weight:520;
   -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent;
+  transition:background-color .12s ease, transform .06s ease;
 }
-button:active{background:var(--surface-2)}
-button:disabled{opacity:.45; cursor:default}
-button:focus-visible, input:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
-input[type=text], input[type=date]{
-  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
-  padding:11px 12px; min-height:44px; width:100%; font-size:16px;
+button:active{transform:scale(.985)}
+button:disabled{opacity:.4; cursor:default}
+button:focus-visible, input:focus-visible, select:focus-visible{
+  outline:3px solid var(--accent); outline-offset:2px
 }
-.btn-primary{background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:640}
-.btn-primary:active{background:var(--accent-press); border-color:var(--accent-press)}
-.btn-ghost{background:transparent}
-.btn-danger{color:var(--danger)}
+.btn-primary{background:var(--accent); color:var(--on-accent); font-weight:640; box-shadow:var(--shadow)}
+.btn-primary:active{background:var(--accent-press)}
+.btn-soft{background:var(--quiet)}
+.btn-quiet{background:transparent; color:var(--muted); font-weight:500}
+.btn-danger{background:transparent; color:var(--danger)}
+.btn-wide{width:100%}
 
-#app{max-width:680px; margin:0 auto; padding:0 max(14px, env(safe-area-inset-left)) 0 max(14px, env(safe-area-inset-right))}
-.screen{display:flex; flex-direction:column; min-height:100dvh; padding-bottom:calc(24px + env(safe-area-inset-bottom))}
-.topbar{
-  display:flex; align-items:center; gap:10px; min-height:56px;
-  padding-top:max(10px, env(safe-area-inset-top));
+input[type=text], input[type=date], input[type=number]{
+  background:var(--quiet); border:1px solid transparent; border-radius:var(--r);
+  padding:13px 14px; min-height:48px; width:100%; font-size:16px;
 }
-.topbar h1{font-size:19px; margin:0; flex:1; letter-spacing:.2px}
-.topbar .sub{font-size:13px; color:var(--muted); font-weight:400; display:block}
-.topbar button{padding:8px 12px; min-height:40px; font-size:14px}
+input:focus{border-color:var(--accent); background:var(--surface)}
+select{
+  background:var(--quiet); border:1px solid transparent; border-radius:12px;
+  padding:9px 8px; min-height:44px; color:var(--text);
+}
 
-.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin-bottom:12px}
-.card h2{font-size:15px; margin:0 0 10px; letter-spacing:.3px; text-transform:uppercase; color:var(--muted)}
+/* ---------- Geruest ---------- */
+#app{max-width:680px; margin:0 auto}
+.screen{
+  display:flex; flex-direction:column; min-height:100dvh;
+  padding:0 max(16px, env(safe-area-inset-left)) 0 max(16px, env(safe-area-inset-right));
+}
+.screen.tabbed{padding-bottom:calc(74px + env(safe-area-inset-bottom))}
+.screen.plain{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+
+.topbar{display:flex; align-items:center; gap:12px; min-height:60px;
+  padding-top:max(14px, env(safe-area-inset-top))}
+.topbar h1{font-size:22px; letter-spacing:-.2px; flex:1; min-width:0}
+.topbar .sub{display:block; font-size:13px; color:var(--muted); font-weight:400; letter-spacing:0}
+.topbar button{min-height:42px; padding:8px 14px; font-size:15px; background:transparent; color:var(--accent)}
+
+/* ---------- Untere Navigation ---------- */
+.tabbar{
+  position:fixed; left:0; right:0; bottom:0; z-index:20;
+  display:flex; justify-content:center; gap:2px;
+  padding:6px max(8px, env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom));
+  background:color-mix(in srgb, var(--surface) 92%, transparent);
+  -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+  border-top:1px solid var(--line);
+}
+.tabbar .inner{display:flex; width:100%; max-width:680px}
+.tabbar button{
+  flex:1; background:transparent; border-radius:12px; padding:6px 2px 4px; min-height:56px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+  font-size:11px; font-weight:560; color:var(--muted); letter-spacing:.1px;
+}
+.tabbar button .ic{font-size:20px; line-height:1; display:block}
+.tabbar button[aria-current="page"]{color:var(--accent)}
+
+/* ---------- Flaechen ---------- */
+.card{background:var(--surface); border-radius:var(--r-lg); padding:16px; margin-bottom:var(--gap);
+  box-shadow:var(--shadow)}
+.card.flat{background:transparent; box-shadow:none; padding:0}
+.sect{font-size:13px; font-weight:600; color:var(--muted); letter-spacing:.2px; margin:0 0 10px}
 .muted{color:var(--muted)}
 .small{font-size:13px}
 .stack{display:flex; flex-direction:column; gap:10px}
@@ -87,134 +144,200 @@ input[type=text], input[type=date]{
 .spread{display:flex; align-items:center; justify-content:space-between; gap:10px}
 .grow{flex:1; min-width:0}
 .truncate{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.empty{text-align:center; color:var(--muted); padding:28px 10px}
+.empty{text-align:center; color:var(--muted); padding:34px 12px; line-height:1.6}
+.empty .big{display:block; margin-bottom:10px; opacity:.45}
+.empty .big svg{width:34px; height:34px; stroke-width:1.6}
+.hint{font-size:13px; color:var(--muted); margin:10px 2px 0; line-height:1.5}
 
 /* ---------- Startseite ---------- */
-.round-item{width:100%; text-align:left; display:flex; align-items:center; gap:12px; padding:12px 14px}
-.round-item .meta{flex:1; min-width:0}
-.round-item .title{font-weight:640}
-.round-item .score{font-variant-numeric:tabular-nums; font-weight:700; font-size:17px}
-.badge{display:inline-block; font-size:12px; font-weight:700; letter-spacing:.4px;
-  padding:3px 8px; border-radius:999px; background:var(--accent); color:var(--on-accent)}
+.hero{background:var(--surface); border-radius:var(--r-lg); padding:20px; box-shadow:var(--shadow);
+  margin-bottom:var(--gap)}
+.hero .eyebrow{font-size:13px; color:var(--muted)}
+.hero .title{font-size:24px; font-weight:680; letter-spacing:-.3px; margin:2px 0 2px}
+.hero .meta{font-size:14px; color:var(--muted); margin-bottom:16px}
+.hero .lead{display:flex; align-items:baseline; gap:8px; margin:0 0 16px}
+.hero .lead .n{font-size:34px; font-weight:740; font-variant-numeric:tabular-nums; line-height:1}
+.progress{height:6px; border-radius:999px; background:var(--sunken); overflow:hidden; margin:0 0 16px}
+.progress span{display:block; height:100%; background:var(--accent); border-radius:999px}
 
-/* ---------- Setup ---------- */
-.par-grid{display:grid; grid-template-columns:repeat(6, 1fr); gap:6px}
+/* ---------- Rundenliste ---------- */
+.round-item{width:100%; text-align:left; display:flex; align-items:center; gap:12px;
+  padding:14px; background:var(--surface); border-radius:var(--r); box-shadow:var(--shadow)}
+.round-item .meta{flex:1; min-width:0}
+.round-item .title{font-weight:620; display:block}
+.round-item .score{font-variant-numeric:tabular-nums; font-weight:700; font-size:17px}
+.badge{display:inline-block; font-size:11px; font-weight:700; letter-spacing:.3px;
+  padding:4px 9px; border-radius:999px; background:var(--accent-soft); color:var(--accent)}
+
+/* ---------- Vorlagen, Chips, Schalter ---------- */
+.chips-row{display:flex; flex-wrap:wrap; gap:8px}
+.chip-btn{font-size:14px; padding:9px 14px; min-height:40px; border-radius:999px; background:var(--quiet)}
+.chip-btn.on{background:var(--accent); color:var(--on-accent); font-weight:640}
+.preset{display:flex; align-items:center; gap:12px; width:100%; text-align:left;
+  padding:14px; background:var(--quiet); border-radius:var(--r)}
+.preset .title{font-weight:620; display:block}
+.preset.on{background:var(--accent-soft); box-shadow:inset 0 0 0 2px var(--accent)}
+.preset .tick{flex:0 0 auto; color:var(--accent); font-weight:800; font-size:18px}
+.tag{font-size:11px; font-weight:640; padding:3px 8px; border-radius:999px;
+  background:var(--sunken); color:var(--muted); margin-left:8px}
+.switch{display:flex; align-items:center; gap:14px; width:100%; text-align:left; padding:14px 16px}
+.switch .box{flex:0 0 26px; height:26px; border:2px solid var(--line); border-radius:8px;
+  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px}
+.switch[aria-pressed="true"] .box{background:var(--accent); border-color:var(--accent); color:var(--on-accent)}
+.switch .lbl{flex:1; min-width:0}
+.switch .lbl b{display:block; font-weight:620}
+.switch .lbl span{display:block; font-size:13px; color:var(--muted)}
+
+/* Segment-Auswahl (Darstellung) */
+.segment{display:flex; gap:4px; background:var(--quiet); border-radius:14px; padding:4px}
+.segment button{flex:1; min-height:42px; border-radius:11px; background:transparent; font-size:15px}
+.segment button[aria-pressed="true"]{background:var(--surface); font-weight:640; box-shadow:var(--shadow)}
+
+/* Listeneintrag mit Pfeil (Einstellungen) */
+.link-row{display:flex; align-items:center; gap:12px; width:100%; text-align:left;
+  padding:14px 16px; background:var(--surface); border-radius:var(--r); box-shadow:var(--shadow)}
+.link-row .ic{flex:0 0 24px; color:var(--muted); display:flex; align-items:center; justify-content:center}
+.link-row .t{flex:1; min-width:0}
+.link-row .t b{display:block; font-weight:600}
+.link-row .t span{display:block; font-size:13px; color:var(--muted)}
+.link-row .arrow{color:var(--muted)}
+
+/* ---------- Setup: Par und Stroke-Index ---------- */
+.par-grid{display:grid; grid-template-columns:repeat(6, 1fr); gap:7px}
 @media (min-width:480px){ .par-grid{grid-template-columns:repeat(9, 1fr)} }
-.par-cell{display:flex; flex-direction:column; align-items:center; gap:2px; padding:7px 0; min-height:52px; background:var(--surface-2)}
+.par-cell{display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 0;
+  min-height:54px; background:var(--quiet); border-radius:12px}
 .par-cell .hole{font-size:11px; color:var(--muted); line-height:1}
 .par-cell .val{font-size:18px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.1}
+.si-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:8px}
+@media (min-width:480px){ .si-grid{grid-template-columns:repeat(6, 1fr)} }
+.si-cell{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted)}
+.si-cell select{flex:1; min-width:0}
 
 /* ---------- Bahn-Eingabe ---------- */
-.hole-head{text-align:center; padding:6px 0 14px}
-.hole-head .no{font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
-.hole-head .par{font-size:40px; font-weight:750; line-height:1.1; font-variant-numeric:tabular-nums}
-.player-card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:12px 12px 14px; margin-bottom:10px}
-.player-card .name{font-weight:640; display:flex; align-items:baseline; gap:8px}
+.hole-head{text-align:center; padding:4px 0 18px}
+.hole-head .no{font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted)}
+.hole-head .par{font-size:42px; font-weight:740; line-height:1.15; font-variant-numeric:tabular-nums;
+  letter-spacing:-.5px}
+.player-card{background:var(--surface); border-radius:var(--r-lg); padding:14px 14px 16px;
+  margin-bottom:11px; box-shadow:var(--shadow)}
+.player-card .name{font-weight:620; display:flex; align-items:baseline; gap:8px}
 .player-card .running{margin-left:auto; font-size:14px; color:var(--muted); font-variant-numeric:tabular-nums}
-.stepper{display:flex; align-items:center; gap:10px; margin-top:8px}
-.stepper .step{flex:0 0 64px; height:58px; font-size:26px; font-weight:600; display:flex; align-items:center; justify-content:center}
+.stepper{display:flex; align-items:center; gap:10px; margin-top:10px}
+.stepper .step{flex:0 0 66px; height:60px; font-size:26px; font-weight:600; background:var(--quiet);
+  display:flex; align-items:center; justify-content:center}
 .stepper .value{flex:1; text-align:center; min-width:0}
-.stepper .value .n{font-size:34px; font-weight:750; line-height:1.05; font-variant-numeric:tabular-nums; display:block}
-.stepper .value .lbl{font-size:12px; letter-spacing:.06em; text-transform:uppercase; display:block; min-height:15px}
-.stepper .clear{flex:0 0 44px; height:44px; padding:0; font-size:17px; align-self:center; background:transparent; border-color:transparent; color:var(--muted)}
+.stepper .value .n{font-size:34px; font-weight:740; line-height:1.05; font-variant-numeric:tabular-nums; display:block}
+.stepper .value .lbl{font-size:12px; letter-spacing:.05em; text-transform:uppercase; display:block; min-height:15px}
+.stepper .clear{flex:0 0 44px; height:44px; padding:0; font-size:17px; align-self:center;
+  background:transparent; color:var(--muted)}
 .s-ace{color:var(--ace)} .s-eagle{color:var(--eagle)} .s-birdie{color:var(--birdie)}
 .s-par{color:var(--par)} .s-bogey{color:var(--bogey)} .s-double{color:var(--double)}
 .s-none{color:var(--muted)}
 
-.navbar{
-  position:sticky; bottom:0; margin-top:auto; display:flex; gap:10px; align-items:center;
-  padding:10px 0 calc(10px + env(safe-area-inset-bottom));
-  background:linear-gradient(to top, var(--bg) 72%, transparent);
-}
+.navbar{position:sticky; bottom:0; margin-top:auto; display:flex; gap:10px; align-items:center;
+  padding:12px 0 calc(12px + env(safe-area-inset-bottom));
+  background:linear-gradient(to top, var(--bg) 74%, transparent)}
 .navbar button{flex:1}
-.navbar .pos{flex:0 0 auto; font-variant-numeric:tabular-nums; font-weight:640; color:var(--muted); font-size:14px; padding:0 4px}
+.navbar .pos{flex:0 0 auto; font-variant-numeric:tabular-nums; font-weight:640; color:var(--muted);
+  font-size:14px; padding:0 4px}
 
 /* ---------- Scorekarte ---------- */
-.table-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface)}
+.table-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:var(--r);
+  background:var(--surface); box-shadow:var(--shadow)}
 table.card-table{border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums}
-table.card-table th, table.card-table td{
-  padding:7px 4px; text-align:center; font-size:14px; border-bottom:1px solid var(--line); min-width:30px;
-}
-table.card-table thead th{font-size:11px; color:var(--muted); font-weight:600; position:sticky; top:0; background:var(--surface)}
+table.card-table th, table.card-table td{padding:8px 4px; text-align:center; font-size:14px;
+  border-bottom:1px solid var(--line); min-width:31px}
+table.card-table tbody tr:last-child th, table.card-table tbody tr:last-child td{border-bottom:none}
+table.card-table thead th{font-size:11px; color:var(--muted); font-weight:600; position:sticky; top:0;
+  background:var(--surface)}
 table.card-table th.name-col, table.card-table td.name-col{
   text-align:left; position:sticky; left:0; background:var(--surface); z-index:1;
-  min-width:74px; max-width:104px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  border-right:1px solid var(--line); padding-left:10px;
-}
+  min-width:78px; max-width:108px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  padding-left:12px; font-weight:600}
 table.card-table tr.par-row td, table.card-table tr.par-row th{background:var(--sunken); color:var(--muted); font-size:13px}
-table.card-table tr.par-row td.name-col, table.card-table tr.par-row th.name-col{background:var(--sunken)}
-table.card-table td.sum{font-weight:700; background:var(--surface-2)}
+table.card-table td.sum{font-weight:700; background:var(--quiet)}
 table.card-table tr.par-row td.sum{background:var(--sunken)}
 table.card-table td.empty-cell{color:var(--line)}
 .par-editable{cursor:pointer}
 
 /* ---------- Ergebnis ---------- */
-.rank{display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line)}
+.rank{display:flex; align-items:center; gap:14px; padding:13px 0; border-bottom:1px solid var(--line)}
 .rank:last-child{border-bottom:none}
-.rank .pos{flex:0 0 30px; font-size:19px; font-weight:750; text-align:center; color:var(--muted); font-variant-numeric:tabular-nums}
+.rank .pos{flex:0 0 30px; font-size:19px; font-weight:740; text-align:center; color:var(--muted);
+  font-variant-numeric:tabular-nums}
 .rank.win .pos{color:var(--accent)}
 .rank .who{flex:1; min-width:0}
-.rank .who .n{display:block}
+.rank .who .n{display:block; font-weight:620}
 .rank .who .small{display:block}
-.rank .who .n{font-weight:640}
 .rank .tot{text-align:right; font-variant-numeric:tabular-nums}
-.rank .tot .strokes{font-size:21px; font-weight:750; display:block; line-height:1.1}
+.rank .tot .strokes{font-size:22px; font-weight:740; display:block; line-height:1.1}
 .rank .tot .rel{font-size:13px; color:var(--muted)}
-.chips{display:flex; flex-wrap:wrap; gap:5px; margin-top:5px}
-.chip{font-size:12px; padding:2px 8px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line)}
-
-.notice{background:var(--surface-2); border:1px solid var(--line); border-left:4px solid var(--danger);
-  border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:14px}
-
-/* ---------- Vorschlaege, Schalter, Fusszeile ---------- */
-.chips-row{display:flex; flex-wrap:wrap; gap:6px}
-.chip-btn{font-size:14px; padding:8px 12px; min-height:38px; border-radius:999px; background:var(--surface-2)}
-.chip-btn.on{background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:700}
-.preset{display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:12px 14px}
-.preset .title{font-weight:640; display:block}
-.preset.on{border-color:var(--accent); background:var(--surface-2)}
-.preset .tick{flex:0 0 auto; color:var(--accent); font-weight:800; font-size:18px}
-.switch{display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:12px 14px}
-.switch .box{flex:0 0 26px; height:26px; border:2px solid var(--line); border-radius:7px;
-  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px}
-.switch[aria-pressed="true"] .box{background:var(--accent); border-color:var(--accent); color:var(--on-accent)}
-.switch .lbl{flex:1; min-width:0}
-.switch .lbl b{display:block}
-.switch .lbl span{display:block; font-size:13px; color:var(--muted)}
-.si-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:8px}
-@media (min-width:480px){ .si-grid{grid-template-columns:repeat(6, 1fr)} }
-.si-cell{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted)}
-.si-cell select{flex:1; min-width:0; min-height:40px; padding:6px 4px; font-size:15px;
-  background:var(--surface-2); border:1px solid var(--line); border-radius:9px; color:var(--text)}
-.footer-nav{display:flex; flex-wrap:wrap; gap:8px; margin-top:4px}
-.footer-nav button{flex:1 1 auto; font-size:14px; min-height:42px; background:transparent}
+.chips{display:flex; flex-wrap:wrap; gap:5px; margin-top:6px}
+.chip{font-size:12px; padding:3px 9px; border-radius:999px; background:var(--quiet)}
 
 /* ---------- Statistik ---------- */
-.stat-name{text-transform:none; font-size:17px; color:var(--text)}
-.stat-grid{display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; margin:10px 0}
-.stat{background:var(--surface-2); border-radius:11px; padding:10px 12px}
-.stat .v{font-size:21px; font-weight:750; font-variant-numeric:tabular-nums; line-height:1.15}
-.stat .k{font-size:12px; color:var(--muted)}
-.bars{display:flex; flex-direction:column; gap:5px; margin-top:8px}
-.bar{display:grid; grid-template-columns:96px 1fr 34px; align-items:center; gap:8px; font-size:13px}
+.stat-name{font-size:17px; font-weight:640; color:var(--text)}
+.stat-grid{display:grid; grid-template-columns:repeat(2, 1fr); gap:9px; margin:12px 0}
+.stat{background:var(--quiet); border-radius:14px; padding:12px 14px}
+.stat .v{font-size:22px; font-weight:740; font-variant-numeric:tabular-nums; line-height:1.15}
+.stat .k{font-size:12px; color:var(--muted); margin-top:2px}
+.bars{display:flex; flex-direction:column; gap:6px; margin-top:10px}
+.bar{display:grid; grid-template-columns:96px 1fr 34px; align-items:center; gap:9px; font-size:13px}
 .bar .track{height:9px; background:var(--sunken); border-radius:999px; overflow:hidden}
 .bar .fill{height:100%; border-radius:999px; background:var(--accent)}
 .bar .n{text-align:right; font-variant-numeric:tabular-nums; color:var(--muted)}
 
 /* ---------- Impressum ---------- */
-.legal{font-size:15px; line-height:1.55}
-.legal h3{font-size:14px; text-transform:uppercase; letter-spacing:.3px; color:var(--muted); margin:16px 0 4px}
+.legal{font-size:15px; line-height:1.6}
+.legal h3{font-size:13px; font-weight:600; color:var(--muted); margin:18px 0 4px}
 .legal h3:first-child{margin-top:0}
 .legal p{margin:0 0 4px}
 .todo{background:color-mix(in srgb, var(--danger) 12%, transparent);
-  border:1px dashed var(--danger); border-radius:6px; padding:1px 7px; font-weight:640}
+  border:1px dashed var(--danger); border-radius:7px; padding:1px 7px; font-weight:620}
+
+.notice{background:var(--quiet); border-left:4px solid var(--danger);
+  border-radius:10px; padding:12px 14px; margin-bottom:var(--gap); font-size:14px}
 
 /* ---------- Selbsttest ---------- */
-.test{padding:10px 12px; border-bottom:1px solid var(--line); font-size:14px; display:flex; gap:10px}
+.test{padding:11px 14px; border-bottom:1px solid var(--line); font-size:14px; display:flex; gap:10px}
 .test .mark{flex:0 0 20px; font-weight:700}
 .test.pass .mark{color:var(--accent)} .test.fail .mark{color:var(--danger)}
 .test.fail{background:color-mix(in srgb, var(--danger) 10%, transparent)}
 .test code{font-size:12px; color:var(--muted); display:block; word-break:break-word}
+
+/* =========================================================================
+   Druckansicht: nur die Karte, schwarz auf weiss, ohne Bedienelemente.
+   ========================================================================= */
+.print-head{display:none}
+@media print{
+  @page{ margin:14mm; }
+  :root, :root[data-theme="dark"]{
+    --bg:#fff; --surface:#fff; --sunken:#fff; --quiet:#fff;
+    --text:#000; --muted:#444; --line:#999; --shadow:none;
+    --ace:#000; --eagle:#000; --birdie:#000; --par:#000; --bogey:#000; --double:#000;
+  }
+  body{background:#fff}
+  .tabbar, .navbar, .topbar, .hint, .notice, button{display:none !important}
+  #app{max-width:none}
+  .screen{min-height:0; padding:0; display:block}
+  .card, .table-wrap{box-shadow:none; padding:0; margin:0 0 8mm; border-radius:0}
+
+  .print-head{display:block; margin:0 0 6mm}
+  .print-head .t{font-size:18pt; font-weight:700}
+  .print-head .m{font-size:10pt; color:#444; margin-top:2mm}
+
+  .table-wrap{overflow:visible}
+  table.card-table{width:100%; font-size:10pt; page-break-inside:avoid}
+  table.card-table th, table.card-table td{border:1px solid #999; padding:2mm 1mm; min-width:0}
+  table.card-table th.name-col, table.card-table td.name-col{position:static; max-width:none}
+  table.card-table td.sum, table.card-table tr.par-row td, table.card-table tr.par-row th{
+    background:#f0f0f0 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  /* Leere Bahnen bleiben leer zum Eintragen von Hand */
+  table.card-table td.empty-cell{color:#fff}
+  .rank{border-bottom:1px solid #999; page-break-inside:avoid}
+  .chips{display:none}
+}
 </style>
 </head>
 <body>
@@ -607,17 +730,55 @@ const BUILTIN_PRESETS = [
   { name: "Swingolf, 9 Bahnen",  pars: new Array(9).fill(3) }
 ];
 
-/* Vorlagen zur Auswahl: erst die gespielten Plaetze (neueste zuerst), dann
-   die mitgelieferten Formen. Ein Platz, den es schon gibt, ist die bessere
-   Vorlage als eine allgemeine Form. */
-function presetList(rounds){
-  const saved = recentCourses(rounds).map(c => ({
-    name: c.name, pars: c.pars, si: c.si, saved: true
-  }));
-  const builtin = BUILTIN_PRESETS.map(b => ({
-    name: b.name, pars: b.pars.slice(), si: defaultSi(b.pars.length), saved: false
-  }));
-  return saved.concat(builtin);
+/* Eine gespeicherte Vorlage. Der Name ist die Identitaet -- zwei Vorlagen
+   gleichen Namens waeren im Auswahlmenue nicht auseinanderzuhalten. */
+function normalizePreset(raw){
+  if (!raw || typeof raw !== "object") return null;
+  const name = String(raw.name || "").trim();
+  if (!name) return null;
+
+  const rawPars = Array.isArray(raw.pars) ? raw.pars : [];
+  if (rawPars.length < MIN_HOLES) return null;
+  const holes = clamp(rawPars.length, MIN_HOLES, MAX_HOLES);
+  const fallback = defaultPars(holes);
+  const pars = Array.from({ length: holes }, (_, i) => {
+    const v = Number(rawPars[i]);
+    return Number.isFinite(v) && v > 0 ? clamp(Math.round(v), MIN_PAR, MAX_PAR) : fallback[i];
+  });
+
+  return { id: String(raw.id || uid()), name: name.slice(0, 60), pars, si: resizeSi(raw.si, holes) };
+}
+
+/* Speichern ersetzt eine Vorlage gleichen Namens, statt eine zweite
+   danebenzulegen. Neueste zuerst. */
+function upsertPreset(presets, raw){
+  const clean = normalizePreset(raw);
+  if (!clean) return presets.slice();
+  const key = clean.name.toLowerCase();
+  return [clean].concat(presets.filter(p => p.name.toLowerCase() !== key));
+}
+
+function removePreset(presets, id){
+  return presets.filter(p => p.id !== id);
+}
+
+/* Vorlagen zur Auswahl: eigene gespeicherte zuerst, dann gespielte Plaetze,
+   zuletzt die mitgelieferten Formen. Gleiche Namen fallen weg -- die weiter
+   oben stehende Quelle gewinnt. */
+function presetList(rounds, presets){
+  const out = [];
+  const seen = new Set();
+  const add = (name, pars, si, kind) => {
+    const key = String(name).trim().toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push({ name, pars: pars.slice(), si: si.slice(), kind });
+  };
+
+  for (const p of (presets || [])) add(p.name, p.pars, p.si, "saved");
+  for (const c of recentCourses(rounds)) add(c.name, c.pars, c.si, "played");
+  for (const b of BUILTIN_PRESETS) add(b.name, b.pars, defaultSi(b.pars.length), "builtin");
+  return out;
 }
 
 function recentCourses(rounds){
@@ -644,6 +805,18 @@ function shareText(round){
   return lines.join("\n");
 }
 
+/* Vorlagen aus einer Sicherung dazunehmen. Ein bereits belegter Name bleibt
+   unangetastet -- die Fassung auf diesem Geraet ist die juengere. */
+function mergePresets(existing, incoming){
+  const known = new Set(existing.map(p => p.name.toLowerCase()));
+  const added = [];
+  for (const raw of (incoming || [])){
+    const pre = normalizePreset(raw);
+    if (pre && !known.has(pre.name.toLowerCase())){ known.add(pre.name.toLowerCase()); added.push(pre); }
+  }
+  return { presets: existing.concat(added), added: added.length };
+}
+
 /* Fuehrt importierte Runden mit den vorhandenen zusammen. Gleiche id heisst
    gleiche Runde -- lieber ueberspringen als doppelt in der Historie. */
 function mergeRounds(existing, incoming){
@@ -658,6 +831,26 @@ function mergeRounds(existing, incoming){
 }
 
 /* =========================================================================
+   Einstellungen
+   ========================================================================= */
+
+const THEMES = ["auto", "light", "dark"];
+const THEME_LABELS = { auto: "Automatisch", light: "Hell", dark: "Dunkel" };
+
+function normalizeSettings(raw){
+  const s = raw && typeof raw === "object" ? raw : {};
+  return { theme: THEMES.includes(s.theme) ? s.theme : "auto" };
+}
+
+/* "auto" heisst: dem Geraet folgen. Die Stylesheet-Regeln haengen an
+   data-theme, deshalb wird das Attribut immer gesetzt -- auch fuer auto,
+   damit die Media Query greift. */
+function applyTheme(theme){
+  document.documentElement.setAttribute("data-theme",
+    THEMES.includes(theme) ? theme : "auto");
+}
+
+/* =========================================================================
    Speicherung
    ========================================================================= */
 
@@ -665,26 +858,35 @@ const STORAGE_KEY = "swing-golf:v1";
 
 function serialize(state){
   return JSON.stringify({
-    version: 1,
+    version: 2,
     rounds: state.rounds,
-    activeId: state.activeId
+    activeId: state.activeId,
+    presets: state.presets,
+    settings: state.settings
   });
 }
 
 function deserialize(raw){
-  const empty = { rounds: [], activeId: null };
-  if (!raw) return empty;
+  const empty = () => ({ rounds: [], activeId: null, presets: [], settings: normalizeSettings(null) });
+  if (!raw) return empty();
   let data;
-  try { data = JSON.parse(raw); } catch { return empty; }
-  if (!data || !Array.isArray(data.rounds)) return empty;
+  try { data = JSON.parse(raw); } catch { return empty(); }
+  if (!data || !Array.isArray(data.rounds)) return empty();
+
   const rounds = data.rounds.map(normalizeRound).filter(Boolean);
-  const activeId = rounds.some(r => r.id === data.activeId) ? data.activeId : null;
-  return { rounds, activeId };
+  return {
+    rounds,
+    activeId: rounds.some(r => r.id === data.activeId) ? data.activeId : null,
+    // Version 1 kannte weder Vorlagen noch Einstellungen -- beides faellt
+    // auf die Vorgabe zurueck, ohne dass die Runden darunter leiden.
+    presets: (Array.isArray(data.presets) ? data.presets : []).map(normalizePreset).filter(Boolean),
+    settings: normalizeSettings(data.settings)
+  };
 }
 
 function loadState(){
   try { return deserialize(localStorage.getItem(STORAGE_KEY)); }
-  catch { return { rounds: [], activeId: null }; }
+  catch { return deserialize(null); }
 }
 
 /* Gibt false zurueck, wenn nicht geschrieben werden konnte (privater Modus,
@@ -699,12 +901,16 @@ function saveState(state){
    ========================================================================= */
 
 const state = {
-  view: "home",        // home | setup | play | summary
+  view: "home",        // Tabs: home | rounds | stats | settings
+                       // darunter: setup | play | summary | data | impressum | presets
   rounds: [],
+  presets: [],
+  settings: { theme: "auto" },
   activeId: null,
   draft: null,         // Runde im Aufbau (noch nicht in rounds)
   hole: 0,             // 0-basierter Bahnindex
   table: false,        // Scorekarte statt Bahn-Eingabe
+  showPar: false,      // Par-Raster im Setup aufgeklappt
   dataMsg: "",         // Rueckmeldung nach Export/Import
   storageFailed: false
 };
@@ -735,68 +941,153 @@ function firstOpenHole(round){
 const esc = s => String(s).replace(/[&<>"']/g, c =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+/* Vier Ziele unten: spielen, nachschlagen, auswerten, einstellen. Alles
+   andere haengt darunter und kommt mit einem Zurueck-Pfeil. */
+const TABS = [
+  { view: "home",     label: "Spielen",   icon: "flag" },
+  { view: "rounds",   label: "Runden",    icon: "list" },
+  { view: "stats",    label: "Statistik", icon: "chart" },
+  { view: "settings", label: "Mehr",      icon: "sliders" }
+];
+const TAB_VIEWS = TABS.map(t => t.view);
+
+const SVG = 'viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" '
+  + 'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+const ICONS = {
+  flag:    `<svg ${SVG}><path d="M6 21V4"/><path d="M6 4.5h11l-2.2 3.4L17 11.4H6"/></svg>`,
+  list:    `<svg ${SVG}><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>`,
+  chart:   `<svg ${SVG}><path d="M5 20v-6M12 20V5M19 20v-9"/></svg>`,
+  sliders: `<svg ${SVG}><path d="M4 8h9M17.5 8H20M4 16h3.5M12 16h8"/><circle cx="15.2" cy="8" r="2.2"/><circle cx="9.7" cy="16" r="2.2"/></svg>`,
+  back:    `<svg ${SVG}><path d="M15 5l-7 7 7 7"/></svg>`,
+  layers:  `<svg ${SVG}><path d="M12 3l8 4.5-8 4.5-8-4.5L12 3Z"/><path d="M4 12.5 12 17l8-4.5"/><path d="M4 17 12 21.5 20 17"/></svg>`,
+  save:    `<svg ${SVG}><path d="M12 3v11"/><path d="m8 10.5 4 4 4-4"/><path d="M4 17.5V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1.5"/></svg>`,
+  info:    `<svg ${SVG}><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6h.01"/></svg>`
+};
+
 function render(){
+  const v = state.view;
   let html = "";
+
   if (state.storageFailed){
     html += `<div class="notice">Diese Runde kann nicht gespeichert werden &ndash; der Browser
-      verweigert den Speicher (privater Modus?). Eintragen funktioniert, aber nach dem Schlie&szlig;en
-      ist die Runde weg.</div>`;
+      verweigert den Speicher (privater Modus?). Eintragen funktioniert, aber nach dem
+      Schlie&szlig;en ist die Runde weg.</div>`;
   }
-  if (state.view === "setup") html += viewSetup();
-  else if (state.view === "play") html += viewPlay();
-  else if (state.view === "summary") html += viewSummary();
-  else if (state.view === "stats") html += viewStats();
-  else if (state.view === "data") html += viewData();
-  else if (state.view === "impressum") html += viewImpressum();
+
+  if (v === "setup") html += viewSetup();
+  else if (v === "play") html += viewPlay();
+  else if (v === "summary") html += viewSummary();
+  else if (v === "data") html += viewData();
+  else if (v === "impressum") html += viewImpressum();
+  else if (v === "presets") html += viewPresets();
+  else if (v === "rounds") html += viewRounds();
+  else if (v === "stats") html += viewStats();
+  else if (v === "settings") html += viewSettings();
   else html += viewHome();
+
+  if (TAB_VIEWS.includes(v)) html += tabbar(v);
   root.innerHTML = html;
 }
 
-function topbar(title, sub, leftBtn, rightBtn){
+function tabbar(current){
+  return `<nav class="tabbar" aria-label="Hauptbereiche"><div class="inner">` +
+    TABS.map(t => `<button data-act="tab" data-view="${t.view}"
+      ${t.view === current ? 'aria-current="page"' : ""}>
+      <span class="ic">${ICONS[t.icon]}</span>${t.label}</button>`).join("") +
+    `</div></nav>`;
+}
+
+/* Kopfzeile. back: Ziel-Ansicht fuer den Zurueck-Pfeil, sonst ohne. */
+function topbar(title, sub, back, right){
   return `<div class="topbar">
-    ${leftBtn || ""}
+    ${back ? `<button data-act="go" data-view="${back}" aria-label="Zur&uuml;ck"
+        style="padding:8px 6px">${ICONS.back}</button>` : ""}
     <h1>${esc(title)}${sub ? `<span class="sub">${esc(sub)}</span>` : ""}</h1>
-    ${rightBtn || ""}
+    ${right || ""}
   </div>`;
 }
 
-/* ---------- Startseite ---------- */
+/* ---------- Spielen ---------- */
 
 function viewHome(){
-  const running = state.rounds.filter(r => !r.completedAt);
-  const done = state.rounds.filter(r => r.completedAt);
-  const sortByDate = (a, b) => (b.date || "").localeCompare(a.date || "");
-  running.sort(sortByDate);
-  done.sort(sortByDate);
+  const round = state.rounds.find(r => r.id === state.activeId && !r.completedAt)
+    || state.rounds.filter(r => !r.completedAt).slice(-1)[0] || null;
 
-  let html = `<div class="screen">` + topbar("Swing Golf", "18 Bahnen, lokal gespeichert");
+  let html = `<div class="screen tabbed">` + topbar("Swing Golf");
 
-  html += `<button class="btn-primary" data-act="new" style="width:100%; margin-bottom:16px">
-    Neue Runde starten</button>`;
+  if (round){
+    const n = holeCount(round);
+    const played = roundProgress(round);
+    const hole = Math.min(played + 1, n);
+    const board = leaderboard(round);
+    html += `<div class="hero">
+      <div class="eyebrow">L&auml;uft gerade</div>
+      <div class="title truncate">${esc(round.courseName || "Runde ohne Namen")}</div>
+      <div class="meta">${fmtDate(round.date)} &middot; ${round.players.length} Spieler${
+        round.stableford ? " &middot; Stableford" : ""}</div>
+      <div class="lead"><span class="n">${hole}</span>
+        <span class="muted">von ${n} Bahnen</span></div>
+      <div class="progress"><span style="width:${Math.round((played / n) * 100)}%"></span></div>
+      <div class="stack" style="gap:6px; margin-bottom:16px">`;
+    for (const e of board.slice(0, 4)){
+      html += `<div class="spread small"><span class="truncate">${esc(e.name)}</span>
+        <span class="muted" style="font-variant-numeric:tabular-nums">${
+          round.stableford ? `${e.points} Pkt` : (e.played ? fmtToPar(e.toPar) : "&ndash;")}</span></div>`;
+    }
+    html += `</div>
+      <button class="btn-primary btn-wide" data-act="resume">Weiterspielen</button>
+    </div>
+    <button class="btn-soft btn-wide" data-act="new">Neue Runde</button>`;
+  } else {
+    const letzte = state.rounds.filter(r => r.completedAt).slice(-1)[0];
+    html += `<div class="hero">
+      <div class="eyebrow">Bereit</div>
+      <div class="title">Neue Runde</div>
+      <div class="meta">Vorlage w&auml;hlen, Spieler eintragen, losz&auml;hlen.</div>
+      <button class="btn-primary btn-wide" data-act="new">Los geht&rsquo;s</button>
+    </div>`;
+    if (letzte){
+      const top = leaderboard(letzte)[0];
+      html += `<button class="round-item" data-act="open" data-id="${letzte.id}">
+        <span class="meta">
+          <span class="title truncate">Zuletzt: ${esc(letzte.courseName || "Ohne Namen")}</span>
+          <span class="small muted">${fmtDate(letzte.date)}${
+            top ? ` &middot; ${esc(top.name)} mit ${top.strokes}` : ""}</span>
+        </span></button>`;
+    }
+  }
+
+  return html + `</div>`;
+}
+
+/* ---------- Runden ---------- */
+
+function viewRounds(){
+  const byDate = (a, b) => (b.date || "").localeCompare(a.date || "");
+  const running = state.rounds.filter(r => !r.completedAt).sort(byDate);
+  const done = state.rounds.filter(r => r.completedAt).sort(byDate);
+
+  let html = `<div class="screen tabbed">` + topbar("Runden");
+
+  if (!state.rounds.length){
+    html += `<div class="card"><div class="empty"><span class="big">${ICONS.flag}</span>
+      Noch keine Runde.<br>Fang auf der Startseite eine an.</div></div>`;
+    return html + `</div>`;
+  }
 
   if (running.length){
-    html += `<div class="card"><h2>Laufend</h2><div class="stack">`;
+    html += `<p class="sect">Laufend</p><div class="stack" style="margin-bottom:20px">`;
     for (const r of running) html += roundItem(r, true);
-    html += `</div></div>`;
-  }
-
-  html += `<div class="card"><h2>Gespielte Runden</h2>`;
-  if (!done.length){
-    html += `<div class="empty">Noch keine Runde abgeschlossen.</div>`;
-  } else {
-    html += `<div class="stack">`;
-    for (const r of done) html += roundItem(r, false);
     html += `</div>`;
   }
-  html += `</div>`;
+  if (done.length){
+    html += `<p class="sect">Abgeschlossen</p><div class="stack">`;
+    for (const r of done) html += roundItem(r, false);
+    html += `</div>`;
+  } else {
+    html += `<div class="card"><div class="empty">Noch keine Runde abgeschlossen.</div></div>`;
+  }
 
-  html += `<div class="footer-nav">
-    <button data-act="stats">Statistik</button>
-    <button data-act="data">Daten</button>
-    <button data-act="impressum">Impressum</button>
-  </div>`;
-  html += `<p class="small muted" style="padding:8px 4px 0">
-    Alle Runden liegen nur auf diesem Ger&auml;t &ndash; nichts wird hochgeladen.</p>`;
   return html + `</div>`;
 }
 
@@ -804,37 +1095,104 @@ function roundItem(round, isRunning){
   const board = leaderboard(round);
   const top = board[0];
   const played = roundProgress(round);
+  const n = holeCount(round);
   const title = round.courseName || "Ohne Platznamen";
   const sub = isRunning
-    ? `${fmtDate(round.date)} &middot; Bahn ${Math.min(played + 1, holeCount(round))} von ${holeCount(round)}`
-    : `${fmtDate(round.date)} &middot; ${top ? esc(top.name) + " gewinnt" : ""}`;
+    ? `${fmtDate(round.date)} &middot; Bahn ${Math.min(played + 1, n)} von ${n}`
+    : `${fmtDate(round.date)} &middot; ${n} Bahnen${top ? ` &middot; ${esc(top.name)}` : ""}`;
 
-  return `<div class="row" style="gap:6px">
+  return `<div class="row" style="gap:8px">
     <button class="round-item grow" data-act="open" data-id="${round.id}">
       <span class="meta">
         <span class="title truncate">${esc(title)}</span>
-        <span class="small muted truncate" style="display:block">${sub}</span>
+        <span class="small muted truncate">${sub}</span>
       </span>
-      ${top && played ? `<span class="score">${top.strokes} <span class="muted small">(${fmtToPar(top.toPar)})</span></span>` : ""}
+      ${top && played ? `<span class="score">${
+        round.stableford ? `${top.points}<span class="muted small"> Pkt</span>`
+                         : `${top.strokes} <span class="muted small">${fmtToPar(top.toPar)}</span>`
+      }</span>` : ""}
       ${isRunning ? `<span class="badge">weiter</span>` : ""}
     </button>
-    <button class="btn-ghost btn-danger" data-act="del" data-id="${round.id}"
-      aria-label="Runde l&ouml;schen" style="flex:0 0 46px; padding:0">&#10005;</button>
+    <button class="btn-danger" data-act="del" data-id="${round.id}"
+      aria-label="Runde l&ouml;schen" style="flex:0 0 46px; padding:0; min-height:56px">&#10005;</button>
   </div>`;
 }
 
-/* ---------- Setup ---------- */
+/* ---------- Einstellungen ---------- */
+
+function viewSettings(){
+  const t = state.settings.theme;
+  let html = `<div class="screen tabbed">` + topbar("Mehr");
+
+  html += `<div class="card">
+    <p class="sect">Darstellung</p>
+    <div class="segment" role="group" aria-label="Darstellung">` +
+    THEMES.map(k => `<button data-act="theme" data-theme="${k}"
+      aria-pressed="${k === t}">${THEME_LABELS[k]}</button>`).join("") +
+    `</div>
+    <p class="hint">Automatisch folgt der Einstellung des Ger&auml;ts.</p>
+  </div>`;
+
+  html += `<div class="stack" style="margin-bottom:var(--gap)">
+    <button class="link-row" data-act="go" data-view="presets">
+      <span class="ic">${ICONS.layers}</span>
+      <span class="t"><b>Vorlagen</b><span>${state.presets.length} gespeichert</span></span>
+      <span class="arrow">&rsaquo;</span></button>
+    <button class="link-row" data-act="go" data-view="data">
+      <span class="ic">${ICONS.save}</span>
+      <span class="t"><b>Daten</b><span>Sichern und zur&uuml;ckholen</span></span>
+      <span class="arrow">&rsaquo;</span></button>
+    <button class="link-row" data-act="go" data-view="impressum">
+      <span class="ic">${ICONS.info}</span>
+      <span class="t"><b>Impressum</b><span>Angaben und Datenschutz</span></span>
+      <span class="arrow">&rsaquo;</span></button>
+  </div>`;
+
+  html += `<p class="hint" style="text-align:center">Alle Runden liegen nur auf diesem
+    Ger&auml;t. Nichts wird hochgeladen.</p>`;
+  return html + `</div>`;
+}
+
+/* ---------- Vorlagen verwalten ---------- */
+
+function viewPresets(){
+  let html = `<div class="screen plain">` + topbar("Vorlagen", null, "settings");
+
+  if (!state.presets.length){
+    html += `<div class="card"><div class="empty"><span class="big">${ICONS.layers}</span>
+      Noch keine eigene Vorlage.<br>Beim Anlegen einer Runde lassen sich Bahnen,
+      Par und Stroke-Index als Vorlage sichern.</div></div>`;
+  } else {
+    html += `<div class="stack">`;
+    for (const pre of state.presets){
+      const total = pre.pars.reduce((a, b) => a + b, 0);
+      html += `<div class="row" style="gap:8px">
+        <span class="round-item grow" style="cursor:default">
+          <span class="meta">
+            <span class="title truncate">${esc(pre.name)}</span>
+            <span class="small muted">${pre.pars.length} Bahnen &middot; Par ${total}</span>
+          </span></span>
+        <button class="btn-danger" data-act="del-preset" data-id="${pre.id}"
+          aria-label="Vorlage l&ouml;schen" style="flex:0 0 46px; padding:0; min-height:56px">&#10005;</button>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  html += `<p class="hint">Gespielte Pl&auml;tze schlage ich ohnehin vor &ndash; gespeicherte
+    Vorlagen stehen dar&uuml;ber und bleiben auch dann, wenn du die Runde l&ouml;schst.</p>`;
+  return html + `</div>`;
+}
 
 function viewSetup(){
   const d = state.draft;
   const n = d.pars.length;
   const parTotal = d.pars.reduce((a, b) => a + b, 0);
-  const presets = presetList(state.rounds);
+  const presets = presetList(state.rounds, state.presets);
   const taken = new Set(d.players.map(p => p.name.trim()).filter(Boolean));
   const people = recentPlayers(state.rounds).filter(p => !taken.has(p.name));
 
-  let html = `<div class="screen">` + topbar("Neue Runde", null,
-    `<button class="btn-ghost" data-act="home">Zur&uuml;ck</button>`);
+  let html = `<div class="screen plain">` + topbar("Neue Runde", null, "home");
 
   /* Mehrere Vorlagen koennen dieselbe Form haben (ein gespielter 18-Loch-Platz
      und "Golfplatz, 18 Loch"). Dann bekommt nur die erste den Haken, sonst
@@ -844,15 +1202,16 @@ function viewSetup(){
   const passt = pre => pre.pars.length === n && pre.pars.every((v, k) => v === d.pars[k]);
   const aktivIdx = presets.findIndex(passt);
 
-  html += `<div class="card"><h2>Vorlage</h2><div class="stack">`;
+  html += `<div class="card"><p class="sect">Vorlage</p><div class="stack">`;
   presets.slice(0, 8).forEach((pre, i) => {
     const total = pre.pars.reduce((a, b) => a + b, 0);
     const aktiv = i === aktivIdx;
     html += `<button class="preset${aktiv ? " on" : ""}" data-act="use-preset" data-i="${i}">
       <span class="grow">
-        <span class="title truncate">${esc(pre.name)}</span>
-        <span class="small muted">${pre.pars.length} Bahnen &middot; Par ${total}${
-          pre.saved ? " &middot; gespielt" : ""}</span>
+        <span class="title truncate">${esc(pre.name)}${
+          pre.kind === "saved" ? `<span class="tag">eigene</span>`
+          : pre.kind === "played" ? `<span class="tag">gespielt</span>` : ""}</span>
+        <span class="small muted">${pre.pars.length} Bahnen &middot; Par ${total}</span>
       </span>
       ${aktiv ? `<span class="tick" aria-label="gew&auml;hlt">&#10003;</span>` : ""}
     </button>`;
@@ -860,13 +1219,13 @@ function viewSetup(){
   html += `</div><p class="small muted" style="margin:10px 0 0">Alles darunter
     l&auml;sst sich danach noch einzeln &auml;ndern.</p></div>`;
 
-  html += `<div class="card"><h2>Platz</h2><div class="stack">
+  html += `<div class="card"><p class="sect">Platz</p><div class="stack">
     <input type="text" data-field="courseName" value="${esc(d.courseName)}"
       placeholder="Platzname" autocomplete="off" enterkeyhint="done">
     <input type="date" data-field="date" value="${esc(d.date)}">
   </div></div>`;
 
-  html += `<div class="card"><h2>Spieler</h2><div class="stack">`;
+  html += `<div class="card"><p class="sect">Spieler</p><div class="stack">`;
   d.players.forEach((p, i) => {
     html += `<div class="row">
       <input class="grow" type="text" data-field="player" data-id="${p.id}"
@@ -874,7 +1233,7 @@ function viewSetup(){
       <input type="number" data-field="hcp" data-id="${p.id}" value="${p.hcp}"
         min="0" max="${MAX_HCP}" step="1" aria-label="Spielvorgabe f&uuml;r Spieler ${i + 1}"
         style="flex:0 0 76px; text-align:center">
-      <button class="btn-ghost btn-danger" data-act="rm-player" data-id="${p.id}"
+      <button class="btn-danger" data-act="rm-player" data-id="${p.id}"
         aria-label="Spieler entfernen" style="flex:0 0 46px; padding:0"
         ${d.players.length <= 1 ? "disabled" : ""}>&#10005;</button>
     </div>`;
@@ -903,7 +1262,7 @@ function viewSetup(){
   </div>`;
 
   html += `<div class="card">
-    <h2>Bahnen</h2>
+    <p class="sect">Bahnen</p>
     <div class="stepper" style="margin:0 0 10px">
       <button class="step" data-act="holes" data-delta="-1"
         aria-label="Eine Bahn weniger" ${n <= MIN_HOLES ? "disabled" : ""}>&minus;</button>
@@ -921,28 +1280,37 @@ function viewSetup(){
       dieser Runde.</p>
   </div>`;
 
+  /* Wer eine Vorlage nimmt, will das Par nicht Bahn fuer Bahn sehen. Es
+     steht als eine Zeile da und klappt nur auf, wenn jemand es braucht. */
   html += `<div class="card">
-    <div class="spread" style="margin-bottom:10px">
-      <h2 style="margin:0">Par je Bahn</h2>
-      <span class="small muted">Gesamt ${parTotal}</span>
-    </div>
-    <div class="par-grid">`;
-  d.pars.forEach((par, i) => {
-    html += `<button class="par-cell" data-act="cycle-par" data-hole="${i}"
-      aria-label="Bahn ${i + 1}, Par ${par}, tippen zum &Auml;ndern">
-      <span class="hole">${i + 1}</span><span class="val">${par}</span></button>`;
-  });
-  html += `</div>
-    <div class="row" style="margin-top:10px">
-      <button class="btn-ghost small grow" data-act="reset-par">Par auf Golf-Standard (4-4-3-5-&hellip;)</button>
-    </div>
-    <p class="small muted" style="margin:8px 0 0">Tippen schaltet ${MIN_PAR}&rarr;${MAX_PAR}&rarr;${MIN_PAR} weiter.</p>
-  </div>`;
+    <button class="switch" data-act="toggle-par" aria-expanded="${state.showPar}"
+      style="padding:0; background:none">
+      <span class="lbl"><b>Par je Bahn</b>
+        <span>Gesamt ${parTotal} &middot; ${n} Bahnen</span></span>
+      <span class="muted" style="font-size:20px">${state.showPar ? "&minus;" : "+"}</span>
+    </button>`;
+  if (state.showPar){
+    html += `<div class="par-grid" style="margin-top:14px">`;
+    d.pars.forEach((par, i) => {
+      html += `<button class="par-cell" data-act="cycle-par" data-hole="${i}"
+        aria-label="Bahn ${i + 1}, Par ${par}, tippen zum &Auml;ndern">
+        <span class="hole">${i + 1}</span><span class="val">${par}</span></button>`;
+    });
+    html += `</div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn-soft small grow" data-act="reset-par">Standard-Par</button>
+      </div>
+      <p class="hint">Tippen schaltet ${MIN_PAR}&rarr;${MAX_PAR}&rarr;${MIN_PAR} weiter.</p>`;
+  }
+  html += `</div>`;
+
+  html += `<button class="btn-soft btn-wide" data-act="save-preset"
+    style="margin-bottom:var(--gap)">Als Vorlage sichern</button>`;
 
   if (d.stableford){
     const valid = new Set(d.si).size === n;
     html += `<div class="card">
-      <h2>Stroke-Index</h2>
+      <p class="sect">Stroke-Index</p>
       <p class="small muted" style="margin:-4px 0 10px">Welche Bahn den wievielten
         Vorschlag bekommt &ndash; steht auf der Scorekarte des Platzes. Jede Zahl
         von 1 bis ${n} genau einmal.</p>
@@ -960,7 +1328,7 @@ function viewSetup(){
         Bahnreihenfolge verwendet.</p>`;
     }
     html += `<div class="row" style="margin-top:10px">
-      <button class="btn-ghost small grow" data-act="reset-si">Bahnreihenfolge wiederherstellen</button>
+      <button class="btn-soft small grow" data-act="reset-si">Bahnreihenfolge wiederherstellen</button>
     </div></div>`;
   }
 
@@ -980,10 +1348,9 @@ function playHole(round){
   const i = state.hole;
   const par = round.pars[i];
 
-  let html = `<div class="screen">` + topbar(
-    round.courseName || "Runde", fmtDate(round.date),
-    `<button class="btn-ghost" data-act="home">Pause</button>`,
-    `<button class="btn-ghost" data-act="toggle-table">Karte</button>`);
+  let html = `<div class="screen plain">` + topbar(
+    round.courseName || "Runde", fmtDate(round.date), "home",
+    `<button data-act="toggle-table">Karte</button>`);
 
   html += `<div class="hole-head">
     <div class="no">Bahn ${i + 1} von ${holeCount(round)}</div>
@@ -1033,10 +1400,11 @@ function playHole(round){
 function playTable(round){
   const cols = tableColumns(round);
 
-  let html = `<div class="screen">` + topbar(
-    round.courseName || "Runde", "Scorekarte",
-    `<button class="btn-ghost" data-act="home">Pause</button>`,
-    `<button class="btn-ghost" data-act="toggle-table">${round.completedAt ? "Ergebnis" : "Bahn"}</button>`);
+  let html = `<div class="screen plain">` + topbar(
+    round.courseName || "Runde", "Scorekarte", "home",
+    `<button data-act="toggle-table">${round.completedAt ? "Ergebnis" : "Bahn"}</button>`);
+
+  html += printHead(round);
 
   const head = cols.map(c => c.sum
     ? `<th>${c.label}</th>`
@@ -1072,20 +1440,33 @@ function playTable(round){
       }</span></div>`;
   }
   html += `</div></div>`;
-  html += `<p class="small muted" style="padding:0 4px">Seitlich wischen f&uuml;r die
-    hinteren Bahnen und die Summen. Par antippen, um ihn zu korrigieren.</p>`;
+  html += `<p class="hint">Seitlich wischen f&uuml;r die hinteren Bahnen und die Summen.
+    Par antippen, um ihn zu korrigieren.</p>`;
 
-  if (!round.completedAt){
-    html += `<div class="navbar"><button class="btn-primary" data-act="finish">Runde beenden</button></div>`;
-  } else {
-    html += `<div class="navbar"><button data-act="summary">Zur Auswertung</button></div>`;
-  }
+  html += `<div class="navbar">
+    <button class="btn-soft" data-act="print">Drucken</button>
+    ${round.completedAt
+      ? `<button data-act="summary">Zur Auswertung</button>`
+      : `<button class="btn-primary" data-act="finish">Runde beenden</button>`}
+  </div>`;
   return html + `</div>`;
 }
 
 /* Spaltenfolge der Karte: die Bahnen, dazwischen Out, am Ende In und Gesamt.
    Laesst sich die Runde nicht halbieren, entfaellt Out/In und es bleibt die
    Gesamtsumme. */
+/* Steht nur im Ausdruck: Platz, Datum und Besetzung als Kopf der Karte.
+   Am Bildschirm sagt das die Kopfzeile, die beim Drucken verschwindet. */
+function printHead(round){
+  const n = holeCount(round);
+  return `<div class="print-head">
+    <div class="t">${esc(round.courseName || "Swing Golf")}</div>
+    <div class="m">${fmtDate(round.date)} &middot; ${n} Bahnen &middot; Par ${
+      sum(round.pars, 0, n)}${round.stableford ? " &middot; Stableford" : ""}
+      &middot; ${round.players.map(p => esc(p.name)).join(", ")}</div>
+  </div>`;
+}
+
 function tableColumns(round){
   const n = holeCount(round);
   const half = halfPoint(n);
@@ -1131,11 +1512,12 @@ function viewSummary(){
   if (!round){ state.view = "home"; return viewHome(); }
   const board = leaderboard(round);
 
-  let html = `<div class="screen">` + topbar(
-    round.courseName || "Runde", fmtDate(round.date),
-    `<button class="btn-ghost" data-act="home">Fertig</button>`);
+  let html = `<div class="screen plain">` + topbar(
+    round.courseName || "Runde", fmtDate(round.date), "home");
 
-  html += `<div class="card"><h2>Endstand</h2>`;
+  html += printHead(round);
+
+  html += `<div class="card"><p class="sect">Endstand</p>`;
   board.forEach((e, idx) => {
     const counts = scoreCounts(round, e.id);
     const chips = COUNT_LABELS
@@ -1165,7 +1547,8 @@ function viewSummary(){
     <button data-act="share">Ergebnis teilen</button>
     <button data-act="show-card">Scorekarte ansehen</button>
     <button data-act="reopen">Runde wieder &ouml;ffnen</button>
-    <button class="btn-primary" data-act="home">Zur &Uuml;bersicht</button>
+    <button class="btn-soft" data-act="print">Drucken</button>
+    <button class="btn-primary" data-act="home">Fertig</button>
   </div>`;
   return html + `</div>`;
 }
@@ -1187,12 +1570,12 @@ function fmtRelAvg(n){
 function viewStats(){
   const rows = statsFor(state.rounds);
 
-  let html = `<div class="screen">` + topbar("Statistik", "\u00fcber alle abgeschlossenen Runden",
-    `<button class="btn-ghost" data-act="home">Zur&uuml;ck</button>`);
+  let html = `<div class="screen tabbed">` + topbar("Statistik",
+    "\u00fcber alle abgeschlossenen Runden");
 
   if (!rows.length){
-    html += `<div class="card"><div class="empty">Noch nichts zu z&auml;hlen &ndash;
-      schlie&szlig;e erst eine Runde ab.</div></div>`;
+    html += `<div class="card"><div class="empty"><span class="big">${ICONS.chart}</span>
+      Noch nichts zu z&auml;hlen.<br>Schlie&szlig;e erst eine Runde ab.</div></div>`;
     return html + `</div>`;
   }
 
@@ -1201,7 +1584,7 @@ function viewStats(){
     const parPerHole = (e.strokes - e.par) / e.holes;
 
     html += `<div class="card">
-      <div class="spread"><h2 class="stat-name" style="margin:0">${esc(e.name)}</h2>
+      <div class="spread"><span class="stat-name">${esc(e.name)}</span>
         <span class="small muted">${e.rounds} Runde${e.rounds === 1 ? "" : "n"}</span></div>
       <div class="stat-grid">
         <div class="stat"><div class="v">${fmtAvg(perHole, 2)}</div>
@@ -1251,11 +1634,11 @@ function viewStats(){
 
 function viewData(){
   const n = state.rounds.length;
-  let html = `<div class="screen">` + topbar("Daten", "Sichern und zur\u00fcckholen",
-    `<button class="btn-ghost" data-act="home">Zur&uuml;ck</button>`);
+  let html = `<div class="screen plain">` + topbar("Daten", "Sichern und zur\u00fcckholen",
+    "settings");
 
   html += `<div class="card">
-    <h2>Auf diesem Ger&auml;t</h2>
+    <p class="sect">Auf diesem Ger&auml;t</p>
     <p style="margin:0 0 12px">${n} Runde${n === 1 ? "" : "n"} gespeichert.
       Sie liegen ausschlie&szlig;lich hier im Browser &ndash; ein anderes Ger&auml;t,
       ein anderer Browser oder gel&ouml;schte Website-Daten hei&szlig;t: weg.</p>
@@ -1264,8 +1647,9 @@ function viewData(){
       <button data-act="import-json">JSON laden</button>
     </div>
     <input type="file" id="importFile" accept="application/json,.json" hidden>
-    <p class="small muted" style="margin:12px 0 0">Beim Laden werden Runden
-      erg&auml;nzt, nicht ersetzt. Schon vorhandene bleiben unangetastet.</p>
+    <p class="hint">Gesichert werden Runden und Vorlagen. Beim Laden wird
+      erg&auml;nzt, nicht ersetzt &ndash; schon Vorhandenes bleibt unangetastet.
+      Die Darstellung geh&ouml;rt zum Ger&auml;t und wandert nicht mit.</p>
   </div>`;
 
   if (state.dataMsg){
@@ -1280,8 +1664,7 @@ function viewData(){
 function viewImpressum(){
   const todo = t => `<span class="todo">${t}</span>`;
 
-  let html = `<div class="screen">` + topbar("Impressum", null,
-    `<button class="btn-ghost" data-act="home">Zur&uuml;ck</button>`);
+  let html = `<div class="screen plain">` + topbar("Impressum", null, "settings");
 
   html += `<div class="card legal">
     <h3>Angaben gem&auml;&szlig; &sect; 5 DDG</h3>
@@ -1326,6 +1709,7 @@ const ACTIONS = {
   new(){
     state.draft = makeRound("", todayISO(), [makePlayer(""), makePlayer("")],
       defaultPars(DEFAULT_HOLES), { stableford: false });
+    state.showPar = false;
     state.view = "setup";
   },
 
@@ -1335,9 +1719,57 @@ const ACTIONS = {
     state.dataMsg = "";
   },
 
-  stats(){ state.view = "stats"; },
-  data(){ state.view = "data"; state.dataMsg = ""; },
-  impressum(){ state.view = "impressum"; },
+  tab(el){
+    state.view = el.dataset.view;
+    state.table = false;
+    state.dataMsg = "";
+  },
+
+  go(el){
+    state.view = el.dataset.view;
+    if (el.dataset.view !== "data") state.dataMsg = "";
+  },
+
+  resume(){
+    const round = state.rounds.find(r => r.id === state.activeId && !r.completedAt)
+      || state.rounds.filter(r => !r.completedAt).slice(-1)[0];
+    if (!round) return;
+    state.activeId = round.id;
+    state.hole = firstOpenHole(round);
+    state.table = false;
+    state.view = "play";
+    persist();
+  },
+
+  theme(el){
+    state.settings.theme = THEMES.includes(el.dataset.theme) ? el.dataset.theme : "auto";
+    applyTheme(state.settings.theme);
+    persist();
+  },
+
+  print(){
+    window.print();
+  },
+
+  "save-preset"(){
+    const d = state.draft;
+    if (!d) return;
+    const vorschlag = d.courseName.trim() || `${d.pars.length} Bahnen, Par ${
+      d.pars.reduce((a, b) => a + b, 0)}`;
+    const name = prompt("Name der Vorlage:", vorschlag);
+    if (name === null) return;                       // abgebrochen
+    state.presets = upsertPreset(state.presets,
+      { name, pars: d.pars.slice(), si: d.si.slice() });
+    persist();
+  },
+
+  "del-preset"(el){
+    const pre = state.presets.find(x => x.id === el.dataset.id);
+    if (!pre) return;
+    if (!confirm(`Vorlage "${pre.name}" l\u00f6schen?`)) return;
+    state.presets = removePreset(state.presets, pre.id);
+    persist();
+  },
 
   open(el){
     const round = state.rounds.find(r => r.id === el.dataset.id);
@@ -1398,17 +1830,21 @@ const ACTIONS = {
     resizeDraft(state.draft, Number(el.dataset.n));
   },
 
+  "toggle-par"(){
+    state.showPar = !state.showPar;
+  },
+
   "toggle-stableford"(){
     state.draft.stableford = !state.draft.stableford;
   },
 
   "use-preset"(el){
-    const pre = presetList(state.rounds)[Number(el.dataset.i)];
+    const pre = presetList(state.rounds, state.presets)[Number(el.dataset.i)];
     if (!pre) return;
     state.draft.pars = pre.pars.slice();
     state.draft.si = pre.si.slice();
-    // Ein gespielter Platz bringt seinen Namen mit, eine allgemeine Form nicht.
-    if (pre.saved) state.draft.courseName = pre.name;
+    // Ein echter Platz bringt seinen Namen mit, eine allgemeine Form nicht.
+    if (pre.kind !== "builtin") state.draft.courseName = pre.name;
   },
 
   "use-player"(el){
@@ -1579,9 +2015,16 @@ root.addEventListener("change", ev => {
 
     const merged = mergeRounds(state.rounds, incoming);
     state.rounds = merged.rounds;
+
+    // Vorlagen stecken mit in der Sicherung und gehoeren mit zurueck.
+    // Die Darstellung bleibt aussen vor -- die gehoert zum Geraet, nicht zur Datei.
+    const vorlagen = mergePresets(state.presets, data && data.presets);
+    state.presets = vorlagen.presets;
+
     persist();
     state.dataMsg = `${merged.added} Runde(n) \u00fcbernommen, ${merged.skipped} `
-      + `\u00fcbersprungen (schon vorhanden oder unbrauchbar).`;
+      + `\u00fcbersprungen (schon vorhanden oder unbrauchbar)`
+      + (vorlagen.added ? `, dazu ${vorlagen.added} Vorlage(n).` : ".");
     render();
   };
   reader.readAsText(file.files[0]);
@@ -1853,6 +2296,16 @@ function runSelfTest(){
     eq(recentCourses([alt, neu])[0].pars[0], 3, "Par-Vorlage kommt mit");
   });
 
+  check("mergePresets ergaenzt, ohne Namen zu doppeln", () => {
+    const a = normalizePreset({ name: "Heim", pars: defaultPars(9) });
+    const b = normalizePreset({ name: "Weg", pars: defaultPars(18) });
+    eq(mergePresets([a], [b]).added, 1, "fremde Vorlage kommt dazu");
+    eq(mergePresets([a], [b]).presets.map(p => p.name), ["Heim", "Weg"], "angehaengt");
+    eq(mergePresets([a], [{ name: "heim", pars: defaultPars(12) }]).added, 0, "gleicher Name bleibt");
+    eq(mergePresets([], [null, { name: "" }, b]).added, 1, "Muell faellt raus");
+    eq(mergePresets([a], null).presets.length, 1, "ohne Eingabe unveraendert");
+  });
+
   check("mergeRounds ergaenzt, ohne zu doppeln", () => {
     const a = demo(); const b = demo();
     const m1 = mergeRounds([a], [b]);
@@ -1957,15 +2410,81 @@ function runSelfTest(){
     eq(strokesReceived(10, si9, 0), 2, "Vorgabe 10 auf 9 Bahnen");
   });
 
-  check("presetList: gespielte Plaetze zuerst, dann die Vorlagen", () => {
+  check("presetList: eigene, dann gespielte, dann mitgelieferte", () => {
     const gespielt = makeRound("Isartal", "2026-01-01", [makePlayer("A")], defaultPars(9));
-    const list = presetList([gespielt]);
-    eq(list[0].name, "Isartal", "gespielter Platz oben");
-    eq([list[0].pars.length, list[0].saved], [9, true], "mit seiner Bahnenzahl");
-    eq(list.slice(1).map(x => x.pars.length), [18, 9, 12, 9], "danach die mitgelieferten");
+    const eigen = normalizePreset({ name: "Heimplatz", pars: new Array(12).fill(3) });
+
+    const list = presetList([gespielt], [eigen]);
+    eq(list.map(x => x.kind).slice(0, 2), ["saved", "played"], "Reihenfolge der Quellen");
+    eq([list[0].name, list[1].name], ["Heimplatz", "Isartal"], "Namen");
+    eq([list[0].pars.length, list[1].pars.length], [12, 9], "je eigene Bahnenzahl");
+    eq(list.slice(2).map(x => x.pars.length), [18, 9, 12, 9], "danach die mitgelieferten");
     eq(list.every(x => x.si.length === x.pars.length), true, "jede Vorlage hat einen passenden Index");
-    eq(presetList([])[0].name, BUILTIN_PRESETS[0].name, "ohne Historie nur Vorlagen");
+    eq(presetList([], [])[0].name, BUILTIN_PRESETS[0].name, "ohne alles nur Vorlagen");
     eq(sum(BUILTIN_PRESETS[2].pars, 0, 12), 36, "Swingolf 12 x Par 3");
+  });
+
+  check("presetList: gleicher Name kommt nur einmal, die obere Quelle gewinnt", () => {
+    const gespielt = makeRound("Isartal", "2026-01-01", [makePlayer("A")], defaultPars(18));
+    const eigen = normalizePreset({ name: "isartal", pars: new Array(9).fill(3) });
+    const list = presetList([gespielt], [eigen]);
+    eq(list.filter(x => x.name.toLowerCase() === "isartal").length, 1, "keine Dublette");
+    eq([list[0].kind, list[0].pars.length], ["saved", 9], "die eigene Fassung steht");
+  });
+
+  check("normalizePreset raeumt auf und verwirft Unbrauchbares", () => {
+    eq(normalizePreset(null), null, "null");
+    eq(normalizePreset({ name: "  ", pars: defaultPars(9) }), null, "ohne Namen");
+    eq(normalizePreset({ name: "X", pars: [] }), null, "ohne Bahnen");
+
+    const pre = normalizePreset({ name: "  Platz  ", pars: [4, 99, null, "5"], si: [9, 9, 9, 9] });
+    eq(pre.name, "Platz", "Name getrimmt");
+    eq(pre.pars, [4, MAX_PAR, defaultPars(4)[2], 5], "Par bereinigt, Loch aus der Vorlage");
+    eq(pre.si.slice().sort((a, b) => a - b), [1, 2, 3, 4], "Index zur Permutation repariert");
+    eq(typeof pre.id, "string", "bekommt eine id");
+    eq(normalizePreset({ name: "Y", pars: new Array(99).fill(4) }).pars.length, MAX_HOLES, "geklemmt");
+  });
+
+  check("upsertPreset ersetzt bei gleichem Namen, removePreset loescht", () => {
+    let list = [];
+    list = upsertPreset(list, { name: "Heim", pars: defaultPars(9) });
+    list = upsertPreset(list, { name: "Weg", pars: defaultPars(18) });
+    eq(list.map(p => p.name), ["Weg", "Heim"], "neueste zuerst");
+
+    list = upsertPreset(list, { name: "heim", pars: new Array(12).fill(3) });
+    eq(list.length, 2, "kein zweiter Eintrag gleichen Namens");
+    eq([list[0].name, list[0].pars.length], ["heim", 12], "die neue Fassung steht oben");
+
+    eq(upsertPreset(list, { name: "", pars: [] }).length, 2, "Unbrauchbares aendert nichts");
+    eq(removePreset(list, list[0].id).map(p => p.name), ["Weg"], "loeschen");
+    eq(removePreset(list, "gibtsnicht").length, 2, "unbekannte id ist harmlos");
+  });
+
+  check("normalizeSettings faellt auf auto zurueck", () => {
+    eq(normalizeSettings(null).theme, "auto", "ohne alles");
+    eq(normalizeSettings({ theme: "dark" }).theme, "dark", "gueltig");
+    eq(normalizeSettings({ theme: "neon" }).theme, "auto", "unbekannt");
+    eq(THEMES, ["auto", "light", "dark"], "die drei Moeglichkeiten");
+  });
+
+  check("Vorlagen und Einstellungen ueberleben das Speichern", () => {
+    const r = demo();
+    const pre = normalizePreset({ name: "Heim", pars: new Array(12).fill(3) });
+    const back = deserialize(serialize({
+      rounds: [r], activeId: r.id, presets: [pre], settings: { theme: "dark" }
+    }));
+    eq(back.presets, [pre], "Vorlage identisch zurueck");
+    eq(back.settings.theme, "dark", "Einstellung zurueck");
+    eq(back.rounds[0], r, "Runde unberuehrt");
+  });
+
+  check("Version-1-Daten laden ohne Vorlagen und Einstellungen", () => {
+    const r = demo();
+    const alt = JSON.stringify({ version: 1, rounds: [r], activeId: r.id });
+    const back = deserialize(alt);
+    eq(back.rounds.length, 1, "Runde kommt mit");
+    eq(back.presets, [], "keine Vorlagen");
+    eq(back.settings.theme, "auto", "Einstellung auf Vorgabe");
   });
 
   const failed = results.filter(r => !r.ok).length;
@@ -1994,7 +2513,10 @@ if (new URLSearchParams(location.search).has("selftest")){
 } else {
   const stored = loadState();
   state.rounds = stored.rounds;
+  state.presets = stored.presets;
+  state.settings = stored.settings;
   state.activeId = stored.activeId;
+  applyTheme(state.settings.theme);
   const active = activeRound();
   /* Direkt zurueck in die laufende Runde: iOS entlaedt die Seite zwischen
      zwei Schlaegen regelmaessig, da will niemand jedes Mal neu navigieren. */
