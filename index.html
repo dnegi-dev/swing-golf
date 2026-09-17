@@ -169,6 +169,11 @@ table.card-table td.empty-cell{color:var(--line)}
 /* ---------- Vorschlaege, Schalter, Fusszeile ---------- */
 .chips-row{display:flex; flex-wrap:wrap; gap:6px}
 .chip-btn{font-size:14px; padding:8px 12px; min-height:38px; border-radius:999px; background:var(--surface-2)}
+.chip-btn.on{background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:700}
+.preset{display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:12px 14px}
+.preset .title{font-weight:640; display:block}
+.preset.on{border-color:var(--accent); background:var(--surface-2)}
+.preset .tick{flex:0 0 auto; color:var(--accent); font-weight:800; font-size:18px}
 .switch{display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:12px 14px}
 .switch .box{flex:0 0 26px; height:26px; border:2px solid var(--line); border-radius:7px;
   display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px}
@@ -224,17 +229,85 @@ table.card-table td.empty-cell{color:var(--line)}
    (?selftest=1) es direkt pruefen kann.
    ========================================================================= */
 
-const HOLES = 18;
+const DEFAULT_HOLES = 18;
+const MIN_HOLES = 1;
+const MAX_HOLES = 36;
 const MIN_STROKES = 1;
 const MAX_STROKES = 20;
 const MIN_PAR = 3;
 const MAX_PAR = 6;
 const MAX_PLAYERS = 6;
 const MAX_HCP = 54;
-const DEFAULT_PARS = [4,4,3,5,4,4,3,4,5, 4,3,4,5,4,4,3,4,5]; // Summe 72
+// Muster einer 18-Loch-Runde, Summe 72. Fuer andere Bahnenzahlen wird es
+// zyklisch fortgesetzt -- irgendeine Vorlage braucht es, und diese ist die
+// vertrauteste.
+const PAR_PATTERN = [4,4,3,5,4,4,3,4,5, 4,3,4,5,4,4,3,4,5];
+
+function defaultPars(holes){
+  return Array.from({ length: holes }, (_, i) => PAR_PATTERN[i % PAR_PATTERN.length]);
+}
+
 // Stroke-Index: welche Bahn den wievielten Vorschlag bekommt. Ohne die Angaben
 // der Scorekarte ist die Reihenfolge der Bahnen die einzige ehrliche Vorgabe.
-const DEFAULT_SI = Array.from({ length: HOLES }, (_, i) => i + 1);
+function defaultSi(holes){
+  return Array.from({ length: holes }, (_, i) => i + 1);
+}
+
+/* Die Bahnenzahl steht nicht im Modell, sie ist die Laenge von pars. Ein
+   zweites Feld koennte davon abweichen, diese Ableitung nicht. */
+function holeCount(round){
+  return round.pars.length;
+}
+
+/* Out/In nur, wenn sich die Runde sauber halbieren laesst: bei 18 die
+   ueblichen 9+9, bei 12 sechs und sechs. Bei 9 Bahnen gibt es keine
+   sinnvolle Haelfte -- dann steht nur die Gesamtsumme. 0 heisst "nicht
+   teilen". */
+function halfPoint(holes){
+  return (holes >= 6 && holes % 2 === 0) ? holes / 2 : 0;
+}
+
+/* Bringt einen Stroke-Index auf n Bahnen: vorhandene gueltige Werte bleiben
+   an ihrer Bahn, alles andere wird mit den fehlenden Zahlen aufgefuellt.
+   Ergebnis ist immer eine Permutation von 1..n. */
+function resizeSi(si, n){
+  const out = new Array(n);
+  const used = new Set();
+  for (let i = 0; i < n; i++){
+    const v = Math.round(Number((si || [])[i]));
+    if (v >= 1 && v <= n && !used.has(v)){ out[i] = v; used.add(v); }
+  }
+  const free = [];
+  for (let v = 1; v <= n; v++) if (!used.has(v)) free.push(v);
+  for (let i = 0; i < n; i++) if (out[i] == null) out[i] = free.shift();
+  return out;
+}
+
+/* Das haeufigste Par der bisherigen Bahnen sagt mehr als eine allgemeine
+   Vorlage: wer auf einem Platz mit zwoelfmal Par 3 eine Bahn ergaenzt, will
+   dort keine Par 5. Gleichstand entscheidet das kleinere Par. */
+function commonPar(pars){
+  if (!pars.length) return PAR_PATTERN[0];
+  const count = new Map();
+  for (const v of pars) count.set(v, (count.get(v) || 0) + 1);
+  let best = null, bestN = 0;
+  for (const [v, n] of count){
+    if (n > bestN || (n === bestN && v < best)){ best = v; bestN = n; }
+  }
+  return best;
+}
+
+/* Bahnenzahl einer noch nicht gestarteten Runde aendern. Bereits gesetzte
+   Bahnen behalten ihr Par, neue bekommen das haeufigste Par der Runde. */
+function resizeDraft(draft, holes){
+  const raw = Math.round(Number(holes));
+  const n = clamp(Number.isFinite(raw) ? raw : DEFAULT_HOLES, MIN_HOLES, MAX_HOLES);
+  const fuellwert = commonPar(draft.pars);
+  draft.pars = Array.from({ length: n }, (_, i) =>
+    draft.pars[i] != null ? draft.pars[i] : fuellwert);
+  draft.si = resizeSi(draft.si, n);
+  return draft;
+}
 
 function uid(){
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -256,8 +329,8 @@ function makeRound(courseName, date, players, pars, opts){
     id: uid(),
     courseName: courseName || "",
     date: date || todayISO(),
-    pars: (pars || DEFAULT_PARS).slice(0, HOLES),
-    si: (o.si || DEFAULT_SI).slice(0, HOLES),
+    pars: (pars && pars.length ? pars : defaultPars(DEFAULT_HOLES)).slice(0, MAX_HOLES),
+    si: [],
     stableford: !!o.stableford,
     players: players.map(p => ({
       id: p.id || uid(),
@@ -267,7 +340,8 @@ function makeRound(courseName, date, players, pars, opts){
     strokes: {},
     completedAt: null
   };
-  for (const p of round.players) round.strokes[p.id] = new Array(HOLES).fill(null);
+  round.si = resizeSi(o.si, round.pars.length);
+  for (const p of round.players) round.strokes[p.id] = new Array(round.pars.length).fill(null);
   return round;
 }
 
@@ -278,10 +352,17 @@ function makeRound(courseName, date, players, pars, opts){
 function normalizeRound(raw){
   if (!raw || typeof raw !== "object") return null;
 
-  const pars = new Array(HOLES);
-  for (let i = 0; i < HOLES; i++){
-    const v = Array.isArray(raw.pars) ? Number(raw.pars[i]) : NaN;
-    pars[i] = Number.isFinite(v) ? clamp(Math.round(v), MIN_PAR, MAX_PAR) : DEFAULT_PARS[i];
+  /* Die Bahnenzahl kommt aus den gespeicherten Daten, nicht aus einer
+     Konstanten -- sonst wuerde eine 9-Loch-Runde beim Laden auf 18
+     aufgeblasen. */
+  const rawPars = Array.isArray(raw.pars) ? raw.pars : [];
+  const holes = clamp(rawPars.length || DEFAULT_HOLES, MIN_HOLES, MAX_HOLES);
+  const fallback = defaultPars(holes);
+
+  const pars = new Array(holes);
+  for (let i = 0; i < holes; i++){
+    const v = Number(rawPars[i]);
+    pars[i] = Number.isFinite(v) && v > 0 ? clamp(Math.round(v), MIN_PAR, MAX_PAR) : fallback[i];
   }
 
   /* Stroke-Index: jede Zahl 1..18 genau einmal. Alles andere (fehlend, doppelt,
@@ -289,8 +370,8 @@ function normalizeRound(raw){
      Vorschlaege falsch, und das faellt niemandem auf. */
   let si = Array.isArray(raw.si) ? raw.si.map(v => Math.round(Number(v))) : [];
   const seen = new Set(si);
-  if (si.length !== HOLES || seen.size !== HOLES || si.some(v => !(v >= 1 && v <= HOLES))){
-    si = DEFAULT_SI.slice();
+  if (si.length !== holes || seen.size !== holes || si.some(v => !(v >= 1 && v <= holes))){
+    si = defaultSi(holes);
   }
 
   const players = Array.isArray(raw.players)
@@ -305,8 +386,8 @@ function normalizeRound(raw){
   const strokes = {};
   for (const p of players){
     const src = raw.strokes && Array.isArray(raw.strokes[p.id]) ? raw.strokes[p.id] : [];
-    const out = new Array(HOLES);
-    for (let i = 0; i < HOLES; i++){
+    const out = new Array(holes);
+    for (let i = 0; i < holes; i++){
       const v = Number(src[i]);
       out[i] = Number.isFinite(v) && v > 0 ? clamp(Math.round(v), MIN_STROKES, MAX_STROKES) : null;
     }
@@ -337,7 +418,7 @@ function holesPlayed(round, playerId){
   return (round.strokes[playerId] || []).filter(v => v != null).length;
 }
 
-function totalStrokes(round, playerId, from = 0, to = HOLES){
+function totalStrokes(round, playerId, from = 0, to = holeCount(round)){
   let sum = 0;
   const s = round.strokes[playerId] || [];
   for (let i = from; i < to; i++) if (s[i] != null) sum += s[i];
@@ -346,14 +427,14 @@ function totalStrokes(round, playerId, from = 0, to = HOLES){
 
 /* Par nur der tatsaechlich gespielten Bahnen -- sonst steht man nach Bahn 1
    mit -68 da. */
-function playedPar(round, playerId, from = 0, to = HOLES){
+function playedPar(round, playerId, from = 0, to = holeCount(round)){
   let sum = 0;
   const s = round.strokes[playerId] || [];
   for (let i = from; i < to; i++) if (s[i] != null) sum += round.pars[i];
   return sum;
 }
 
-function toPar(round, playerId, from = 0, to = HOLES){
+function toPar(round, playerId, from = 0, to = holeCount(round)){
   return totalStrokes(round, playerId, from, to) - playedPar(round, playerId, from, to);
 }
 
@@ -373,7 +454,7 @@ function scoreLabel(strokes, par){
 function scoreCounts(round, playerId){
   const counts = { ace: 0, eagle: 0, birdie: 0, par: 0, bogey: 0, double: 0 };
   const s = round.strokes[playerId] || [];
-  for (let i = 0; i < HOLES; i++){
+  for (let i = 0; i < holeCount(round); i++){
     if (s[i] == null) continue;
     counts[scoreLabel(s[i], round.pars[i]).key]++;
   }
@@ -383,8 +464,9 @@ function scoreCounts(round, playerId){
 /* Vorschlaege nach Spielvorgabe: erst jede Bahn einmal, der Rest nach
    Stroke-Index. Bei Vorgabe 0 kommt 0 heraus, dann ist Stableford brutto. */
 function strokesReceived(hcp, si, holeIdx){
+  const holes = si.length;
   const h = clamp(Math.round(hcp || 0), 0, MAX_HCP);
-  return Math.floor(h / HOLES) + (si[holeIdx] <= (h % HOLES) ? 1 : 0);
+  return Math.floor(h / holes) + (si[holeIdx] <= (h % holes) ? 1 : 0);
 }
 
 function stablefordPoints(strokes, par, received){
@@ -401,7 +483,7 @@ function holePoints(round, playerId, i){
   );
 }
 
-function totalPoints(round, playerId, from = 0, to = HOLES){
+function totalPoints(round, playerId, from = 0, to = holeCount(round)){
   let sum = 0;
   for (let i = from; i < to; i++){
     const p = holePoints(round, playerId, i);
@@ -481,14 +563,14 @@ function statsFor(rounds){
       for (const k in counts) e.counts[k] += counts[k];
 
       const s = r.strokes[p.id];
-      for (let i = 0; i < HOLES; i++){
+      for (let i = 0; i < holeCount(r); i++){
         if (s[i] == null) continue;
         const bucket = e.byPar[r.pars[i]];
         if (bucket){ bucket.holes++; bucket.strokes += s[i]; }
       }
 
       // Nur vollstaendige Runden sind untereinander vergleichbar.
-      if (played === HOLES){
+      if (played === holeCount(r)){
         e.fullRounds++;
         const tot = totalStrokes(r, p.id);
         if (!e.best || tot < e.best.strokes){
@@ -516,6 +598,28 @@ function recentPlayers(rounds){
   return [...seen.values()];
 }
 
+/* Mitgelieferte Vorlagen. Eine Runde faengt mit einer Form an, nicht mit 18
+   leeren Feldern -- welche Form, ist die erste Frage auf dem Platz. */
+const BUILTIN_PRESETS = [
+  { name: "Golfplatz, 18 Loch", pars: defaultPars(18) },
+  { name: "Golfplatz, 9 Loch",  pars: defaultPars(9) },
+  { name: "Swingolf, 12 Bahnen", pars: new Array(12).fill(3) },
+  { name: "Swingolf, 9 Bahnen",  pars: new Array(9).fill(3) }
+];
+
+/* Vorlagen zur Auswahl: erst die gespielten Plaetze (neueste zuerst), dann
+   die mitgelieferten Formen. Ein Platz, den es schon gibt, ist die bessere
+   Vorlage als eine allgemeine Form. */
+function presetList(rounds){
+  const saved = recentCourses(rounds).map(c => ({
+    name: c.name, pars: c.pars, si: c.si, saved: true
+  }));
+  const builtin = BUILTIN_PRESETS.map(b => ({
+    name: b.name, pars: b.pars.slice(), si: defaultSi(b.pars.length), saved: false
+  }));
+  return saved.concat(builtin);
+}
+
 function recentCourses(rounds){
   const seen = new Map();
   for (let i = rounds.length - 1; i >= 0; i--){
@@ -536,7 +640,7 @@ function shareText(round){
       ? `${i + 1}. ${e.name} \u2014 ${e.points} Punkte (${e.strokes} Schl\u00e4ge)`
       : `${i + 1}. ${e.name} \u2014 ${e.strokes} Schl\u00e4ge (${fmtToPar(e.toPar)})`);
   });
-  lines.push(`Par ${sum(round.pars, 0, HOLES)}, ${HOLES} Bahnen`);
+  lines.push(`Par ${sum(round.pars, 0, holeCount(round))}, ${holeCount(round)} Bahnen`);
   return lines.join("\n");
 }
 
@@ -617,10 +721,11 @@ function persist(){
 }
 
 function firstOpenHole(round){
-  for (let i = 0; i < HOLES; i++){
+  const n = holeCount(round);
+  for (let i = 0; i < n; i++){
     if (round.players.some(p => round.strokes[p.id][i] == null)) return i;
   }
-  return HOLES - 1;
+  return n - 1;
 }
 
 /* =========================================================================
@@ -701,7 +806,7 @@ function roundItem(round, isRunning){
   const played = roundProgress(round);
   const title = round.courseName || "Ohne Platznamen";
   const sub = isRunning
-    ? `${fmtDate(round.date)} &middot; Bahn ${Math.min(played + 1, HOLES)} von ${HOLES}`
+    ? `${fmtDate(round.date)} &middot; Bahn ${Math.min(played + 1, holeCount(round))} von ${holeCount(round)}`
     : `${fmtDate(round.date)} &middot; ${top ? esc(top.name) + " gewinnt" : ""}`;
 
   return `<div class="row" style="gap:6px">
@@ -722,25 +827,44 @@ function roundItem(round, isRunning){
 
 function viewSetup(){
   const d = state.draft;
+  const n = d.pars.length;
   const parTotal = d.pars.reduce((a, b) => a + b, 0);
-  const courses = recentCourses(state.rounds);
+  const presets = presetList(state.rounds);
   const taken = new Set(d.players.map(p => p.name.trim()).filter(Boolean));
   const people = recentPlayers(state.rounds).filter(p => !taken.has(p.name));
 
   let html = `<div class="screen">` + topbar("Neue Runde", null,
     `<button class="btn-ghost" data-act="home">Zur&uuml;ck</button>`);
 
+  /* Mehrere Vorlagen koennen dieselbe Form haben (ein gespielter 18-Loch-Platz
+     und "Golfplatz, 18 Loch"). Dann bekommt nur die erste den Haken, sonst
+     sieht es aus, als waeren zwei gewaehlt. Die Markierung haengt an den
+     Werten, nicht an einem gemerkten Namen -- wer danach das Par aendert,
+     verliert sie automatisch. */
+  const passt = pre => pre.pars.length === n && pre.pars.every((v, k) => v === d.pars[k]);
+  const aktivIdx = presets.findIndex(passt);
+
+  html += `<div class="card"><h2>Vorlage</h2><div class="stack">`;
+  presets.slice(0, 8).forEach((pre, i) => {
+    const total = pre.pars.reduce((a, b) => a + b, 0);
+    const aktiv = i === aktivIdx;
+    html += `<button class="preset${aktiv ? " on" : ""}" data-act="use-preset" data-i="${i}">
+      <span class="grow">
+        <span class="title truncate">${esc(pre.name)}</span>
+        <span class="small muted">${pre.pars.length} Bahnen &middot; Par ${total}${
+          pre.saved ? " &middot; gespielt" : ""}</span>
+      </span>
+      ${aktiv ? `<span class="tick" aria-label="gew&auml;hlt">&#10003;</span>` : ""}
+    </button>`;
+  });
+  html += `</div><p class="small muted" style="margin:10px 0 0">Alles darunter
+    l&auml;sst sich danach noch einzeln &auml;ndern.</p></div>`;
+
   html += `<div class="card"><h2>Platz</h2><div class="stack">
     <input type="text" data-field="courseName" value="${esc(d.courseName)}"
       placeholder="Platzname" autocomplete="off" enterkeyhint="done">
-    <input type="date" data-field="date" value="${esc(d.date)}">`;
-  if (courses.length){
-    html += `<div class="chips-row">` + courses.slice(0, 6).map((c, i) =>
-      `<button class="chip-btn" data-act="use-course" data-i="${i}">${esc(c.name)}</button>`
-    ).join("") + `</div>
-    <p class="small muted" style="margin:0">Antippen &uuml;bernimmt Name, Par und Stroke-Index.</p>`;
-  }
-  html += `</div></div>`;
+    <input type="date" data-field="date" value="${esc(d.date)}">
+  </div></div>`;
 
   html += `<div class="card"><h2>Spieler</h2><div class="stack">`;
   d.players.forEach((p, i) => {
@@ -779,6 +903,25 @@ function viewSetup(){
   </div>`;
 
   html += `<div class="card">
+    <h2>Bahnen</h2>
+    <div class="stepper" style="margin:0 0 10px">
+      <button class="step" data-act="holes" data-delta="-1"
+        aria-label="Eine Bahn weniger" ${n <= MIN_HOLES ? "disabled" : ""}>&minus;</button>
+      <div class="value"><span class="n">${n}</span>
+        <span class="lbl">Bahnen</span></div>
+      <button class="step" data-act="holes" data-delta="1"
+        aria-label="Eine Bahn mehr" ${n >= MAX_HOLES ? "disabled" : ""}>+</button>
+    </div>
+    <div class="chips-row">` +
+      [6, 9, 12, 18].map(v =>
+        `<button class="chip-btn${v === n ? " on" : ""}" data-act="holes-set" data-n="${v}">${v}</button>`
+      ).join("") + `</div>
+    <p class="small muted" style="margin:8px 0 0">${MIN_HOLES} bis ${MAX_HOLES} Bahnen.
+      Vorhandene Bahnen behalten ihr Par, neue bekommen das h&auml;ufigste Par
+      dieser Runde.</p>
+  </div>`;
+
+  html += `<div class="card">
     <div class="spread" style="margin-bottom:10px">
       <h2 style="margin:0">Par je Bahn</h2>
       <span class="small muted">Gesamt ${parTotal}</span>
@@ -791,23 +934,23 @@ function viewSetup(){
   });
   html += `</div>
     <div class="row" style="margin-top:10px">
-      <button class="btn-ghost small grow" data-act="reset-par">Standard (72) wiederherstellen</button>
+      <button class="btn-ghost small grow" data-act="reset-par">Par auf Golf-Standard (4-4-3-5-&hellip;)</button>
     </div>
     <p class="small muted" style="margin:8px 0 0">Tippen schaltet ${MIN_PAR}&rarr;${MAX_PAR}&rarr;${MIN_PAR} weiter.</p>
   </div>`;
 
   if (d.stableford){
-    const valid = new Set(d.si).size === HOLES;
+    const valid = new Set(d.si).size === n;
     html += `<div class="card">
       <h2>Stroke-Index</h2>
       <p class="small muted" style="margin:-4px 0 10px">Welche Bahn den wievielten
         Vorschlag bekommt &ndash; steht auf der Scorekarte des Platzes. Jede Zahl
-        genau einmal.</p>
+        von 1 bis ${n} genau einmal.</p>
       <div class="si-grid">`;
     d.si.forEach((v, i) => {
       html += `<label class="si-cell">${i + 1}
         <select data-field="si" data-hole="${i}" aria-label="Stroke-Index Bahn ${i + 1}">` +
-        DEFAULT_SI.map(n => `<option value="${n}"${n === v ? " selected" : ""}>${n}</option>`).join("") +
+        defaultSi(n).map(k => `<option value="${k}"${k === v ? " selected" : ""}>${k}</option>`).join("") +
         `</select></label>`;
     });
     html += `</div>`;
@@ -843,7 +986,7 @@ function playHole(round){
     `<button class="btn-ghost" data-act="toggle-table">Karte</button>`);
 
   html += `<div class="hole-head">
-    <div class="no">Bahn ${i + 1} von ${HOLES}</div>
+    <div class="no">Bahn ${i + 1} von ${holeCount(round)}</div>
     <div class="par">Par ${par}</div>
   </div>`;
 
@@ -876,10 +1019,10 @@ function playHole(round){
     </div>`;
   }
 
-  const last = i === HOLES - 1;
+  const last = i === holeCount(round) - 1;
   html += `<div class="navbar">
     <button data-act="prev-hole" ${i === 0 ? "disabled" : ""}>&larr; Bahn</button>
-    <span class="pos">${i + 1}/${HOLES}</span>
+    <span class="pos">${i + 1}/${holeCount(round)}</span>
     ${last
       ? `<button class="btn-primary" data-act="finish">Runde beenden</button>`
       : `<button data-act="next-hole">Bahn &rarr;</button>`}
@@ -888,40 +1031,34 @@ function playHole(round){
 }
 
 function playTable(round){
+  const cols = tableColumns(round);
+
   let html = `<div class="screen">` + topbar(
     round.courseName || "Runde", "Scorekarte",
     `<button class="btn-ghost" data-act="home">Pause</button>`,
     `<button class="btn-ghost" data-act="toggle-table">${round.completedAt ? "Ergebnis" : "Bahn"}</button>`);
 
-  const head = [];
-  for (let i = 0; i < 9; i++) head.push(`<th>${i + 1}</th>`);
-  head.push(`<th>Out</th>`);
-  for (let i = 9; i < HOLES; i++) head.push(`<th>${i + 1}</th>`);
-  head.push(`<th>In</th><th>Ges</th>`);
+  const head = cols.map(c => c.sum
+    ? `<th>${c.label}</th>`
+    : `<th>${c.hole + 1}</th>`).join("");
 
-  const parCells = [];
-  for (let i = 0; i < 9; i++) parCells.push(parCell(round, i));
-  parCells.push(`<td class="sum">${sum(round.pars, 0, 9)}</td>`);
-  for (let i = 9; i < HOLES; i++) parCells.push(parCell(round, i));
-  parCells.push(`<td class="sum">${sum(round.pars, 9, HOLES)}</td>`);
-  parCells.push(`<td class="sum">${sum(round.pars, 0, HOLES)}</td>`);
+  const parCells = cols.map(c => c.sum
+    ? `<td class="sum">${sum(round.pars, c.sum[0], c.sum[1])}</td>`
+    : parCell(round, c.hole)).join("");
 
   let body = "";
   for (const p of round.players){
     const s = round.strokes[p.id];
-    const cells = [];
-    for (let i = 0; i < 9; i++) cells.push(strokeCell(s[i], round.pars[i]));
-    cells.push(`<td class="sum">${totalStrokes(round, p.id, 0, 9) || "&middot;"}</td>`);
-    for (let i = 9; i < HOLES; i++) cells.push(strokeCell(s[i], round.pars[i]));
-    cells.push(`<td class="sum">${totalStrokes(round, p.id, 9, HOLES) || "&middot;"}</td>`);
-    cells.push(`<td class="sum">${totalStrokes(round, p.id) || "&middot;"}</td>`);
-    body += `<tr><th class="name-col" scope="row">${esc(p.name)}</th>${cells.join("")}</tr>`;
+    const cells = cols.map(c => c.sum
+      ? `<td class="sum">${totalStrokes(round, p.id, c.sum[0], c.sum[1]) || "&middot;"}</td>`
+      : strokeCell(s[c.hole], round.pars[c.hole])).join("");
+    body += `<tr><th class="name-col" scope="row">${esc(p.name)}</th>${cells}</tr>`;
   }
 
   html += `<div class="table-wrap"><table class="card-table">
-    <thead><tr><th class="name-col">Bahn</th>${head.join("")}</tr></thead>
+    <thead><tr><th class="name-col">Bahn</th>${head}</tr></thead>
     <tbody>
-      <tr class="par-row"><th class="name-col" scope="row">Par</th>${parCells.join("")}</tr>
+      <tr class="par-row"><th class="name-col" scope="row">Par</th>${parCells}</tr>
       ${body}
     </tbody></table></div>`;
 
@@ -935,8 +1072,8 @@ function playTable(round){
       }</span></div>`;
   }
   html += `</div></div>`;
-  html += `<p class="small muted" style="padding:0 4px">Seitlich wischen f&uuml;r Bahn 10&ndash;18 und die Summen.
-    Par antippen, um ihn zu korrigieren.</p>`;
+  html += `<p class="small muted" style="padding:0 4px">Seitlich wischen f&uuml;r die
+    hinteren Bahnen und die Summen. Par antippen, um ihn zu korrigieren.</p>`;
 
   if (!round.completedAt){
     html += `<div class="navbar"><button class="btn-primary" data-act="finish">Runde beenden</button></div>`;
@@ -944,6 +1081,22 @@ function playTable(round){
     html += `<div class="navbar"><button data-act="summary">Zur Auswertung</button></div>`;
   }
   return html + `</div>`;
+}
+
+/* Spaltenfolge der Karte: die Bahnen, dazwischen Out, am Ende In und Gesamt.
+   Laesst sich die Runde nicht halbieren, entfaellt Out/In und es bleibt die
+   Gesamtsumme. */
+function tableColumns(round){
+  const n = holeCount(round);
+  const half = halfPoint(n);
+  const cols = [];
+  for (let i = 0; i < n; i++){
+    cols.push({ hole: i });
+    if (half && i + 1 === half) cols.push({ sum: [0, half], label: "Out" });
+  }
+  if (half) cols.push({ sum: [half, n], label: "In" });
+  cols.push({ sum: [0, n], label: "Ges" });
+  return cols;
 }
 
 function parCell(round, i){
@@ -993,7 +1146,7 @@ function viewSummary(){
       <span class="pos">${idx + 1}</span>
       <span class="who">
         <span class="n truncate">${esc(e.name)}</span>
-        <span class="small muted">${e.played} von ${HOLES} Bahnen${
+        <span class="small muted">${e.played} von ${holeCount(round)} Bahnen${
           round.stableford && e.hcp ? ` &middot; Vorgabe ${e.hcp}` : ""}</span>
         ${chips ? `<span class="chips">${chips}</span>` : ""}
       </span>
@@ -1172,7 +1325,7 @@ function viewImpressum(){
 const ACTIONS = {
   new(){
     state.draft = makeRound("", todayISO(), [makePlayer(""), makePlayer("")],
-      DEFAULT_PARS, { si: DEFAULT_SI, stableford: false });
+      defaultPars(DEFAULT_HOLES), { stableford: false });
     state.view = "setup";
   },
 
@@ -1230,23 +1383,32 @@ const ACTIONS = {
   },
 
   "reset-par"(){
-    state.draft.pars = DEFAULT_PARS.slice();
+    state.draft.pars = defaultPars(state.draft.pars.length);
   },
 
   "reset-si"(){
-    state.draft.si = DEFAULT_SI.slice();
+    state.draft.si = defaultSi(state.draft.pars.length);
+  },
+
+  holes(el){
+    resizeDraft(state.draft, state.draft.pars.length + Number(el.dataset.delta));
+  },
+
+  "holes-set"(el){
+    resizeDraft(state.draft, Number(el.dataset.n));
   },
 
   "toggle-stableford"(){
     state.draft.stableford = !state.draft.stableford;
   },
 
-  "use-course"(el){
-    const c = recentCourses(state.rounds)[Number(el.dataset.i)];
-    if (!c) return;
-    state.draft.courseName = c.name;
-    state.draft.pars = c.pars.slice();
-    state.draft.si = c.si.slice();
+  "use-preset"(el){
+    const pre = presetList(state.rounds)[Number(el.dataset.i)];
+    if (!pre) return;
+    state.draft.pars = pre.pars.slice();
+    state.draft.si = pre.si.slice();
+    // Ein gespielter Platz bringt seinen Namen mit, eine allgemeine Form nicht.
+    if (pre.saved) state.draft.courseName = pre.name;
   },
 
   "use-player"(el){
@@ -1291,7 +1453,10 @@ const ACTIONS = {
   },
 
   "prev-hole"(){ state.hole = Math.max(0, state.hole - 1); },
-  "next-hole"(){ state.hole = Math.min(HOLES - 1, state.hole + 1); },
+  "next-hole"(){
+    const round = activeRound();
+    state.hole = Math.min((round ? holeCount(round) : 1) - 1, state.hole + 1);
+  },
 
   "toggle-table"(){
     const round = activeRound();
@@ -1306,7 +1471,7 @@ const ACTIONS = {
   finish(){
     const round = activeRound();
     if (!round) return;
-    const open = HOLES - roundProgress(round);
+    const open = holeCount(round) - roundProgress(round);
     if (open > 0 && !confirm(`${open} Bahn${open === 1 ? "" : "en"} ohne Eintrag. Runde trotzdem beenden?`)) return;
     round.completedAt = new Date().toISOString();
     state.table = false;
@@ -1443,7 +1608,7 @@ function runSelfTest(){
 
   const demo = () => {
     const r = makeRound("Testplatz", "2026-05-01",
-      [{ id: "a", name: "Anna" }, { id: "b", name: "Ben" }], DEFAULT_PARS);
+      [{ id: "a", name: "Anna" }, { id: "b", name: "Ben" }], defaultPars(18));
     // Anna: Bahn 1 Birdie (3 auf Par 4), Bahn 2 Par, Bahn 3 Doppelbogey (5 auf Par 3)
     r.strokes.a[0] = 3; r.strokes.a[1] = 4; r.strokes.a[2] = 5;
     // Ben: Bahn 1 Bogey, Bahn 2 offen, Bahn 3 Par
@@ -1451,16 +1616,18 @@ function runSelfTest(){
     return r;
   };
 
-  check("DEFAULT_PARS: 18 Bahnen, Summe 72", () => {
-    eq(DEFAULT_PARS.length, HOLES, "Anzahl Bahnen");
-    eq(sum(DEFAULT_PARS, 0, HOLES), 72, "Par gesamt");
-    return "Out " + sum(DEFAULT_PARS, 0, 9) + " / In " + sum(DEFAULT_PARS, 9, 18);
+  check("Par-Vorlage: 18 Bahnen, Summe 72", () => {
+    eq(defaultPars(18).length, 18, "Anzahl Bahnen");
+    eq(sum(defaultPars(18), 0, 18), 72, "Par gesamt");
+    eq(sum(defaultPars(9), 0, 9), 36, "neun Bahnen ergeben 36");
+    eq(defaultPars(20).slice(18), PAR_PATTERN.slice(0, 2), "wird zyklisch fortgesetzt");
+    return "Out " + sum(defaultPars(18), 0, 9) + " / In " + sum(defaultPars(18), 9, 18);
   });
 
   check("makeRound legt 18 leere Bahnen je Spieler an", () => {
-    const r = makeRound("X", "2026-01-01", [makePlayer("A")], DEFAULT_PARS);
+    const r = makeRound("X", "2026-01-01", [makePlayer("A")], defaultPars(18));
     const s = r.strokes[r.players[0].id];
-    eq(s.length, HOLES, "Bahnen");
+    eq(s.length, 18, "Bahnen");
     eq(s.every(v => v === null), true, "alle leer");
   });
 
@@ -1482,7 +1649,7 @@ function runSelfTest(){
     const r = demo();
     for (const p of r.players){
       const out = totalStrokes(r, p.id, 0, 9);
-      const inn = totalStrokes(r, p.id, 9, HOLES);
+      const inn = totalStrokes(r, p.id, 9, 18);
       eq(out + inn, totalStrokes(r, p.id), p.name);
     }
   });
@@ -1528,18 +1695,21 @@ function runSelfTest(){
   });
 
   check("normalizeRound repariert kaputte Daten", () => {
+    const pars = defaultPars(18);
+    pars[1] = 99; pars[2] = "3"; pars[5] = null;            // Unsinn, String, Loch
     const r = normalizeRound({
       id: "r1", courseName: "Alt", date: "2026-02-02",
-      pars: [4, 99, "3"],                                  // zu kurz, Unsinn, String
+      pars,
       players: [{ id: "a", name: "Anna" }, { id: "x" }],     // Name fehlt
       strokes: { a: [4, 0, "5", -2, null, 1000] }           // zu kurz, 0, String, negativ
     });
-    eq(r.pars.length, HOLES, "Par-Laenge");
+    eq(r.pars.length, 18, "Par-Laenge");
     eq(r.pars[1], MAX_PAR, "99 auf Maximum geklemmt");
     eq(r.pars[2], 3, "String zu Zahl");
-    eq(r.pars[5], DEFAULT_PARS[5], "fehlende Bahn aus Vorlage");
+    eq(r.pars[5], defaultPars(18)[5], "fehlende Bahn aus Vorlage");
     eq(r.strokes.a.slice(0, 6), [4, null, 5, null, null, MAX_STROKES], "Schlaege bereinigt");
-    eq(r.strokes.x.length, HOLES, "Spieler ohne Eintraege bekommt Array");
+    eq(r.strokes.a.length, 18, "auf die Bahnenzahl aufgefuellt");
+    eq(r.strokes.x.length, 18, "Spieler ohne Eintraege bekommt Array");
     eq(r.players[1].name, "", "fehlender Name wird leer");
   });
 
@@ -1583,13 +1753,13 @@ function runSelfTest(){
 
   check("roundProgress zaehlt die weiteste Bahn", () => {
     eq(roundProgress(demo()), 3, "Anna hat 3");
-    eq(isRoundEmpty(makeRound("X", "2026-01-01", [makePlayer("A")], DEFAULT_PARS)), true, "leere Runde");
+    eq(isRoundEmpty(makeRound("X", "2026-01-01", [makePlayer("A")], defaultPars(18))), true, "leere Runde");
   });
 
   check("strokesReceived verteilt nach Stroke-Index", () => {
-    const si = DEFAULT_SI;
-    eq(DEFAULT_SI.map((_, i) => strokesReceived(0, si, i)).reduce((a, b) => a + b, 0), 0, "Vorgabe 0");
-    eq(DEFAULT_SI.map((_, i) => strokesReceived(18, si, i)), new Array(HOLES).fill(1), "Vorgabe 18");
+    const si = defaultSi(18);
+    eq(defaultSi(18).map((_, i) => strokesReceived(0, si, i)).reduce((a, b) => a + b, 0), 0, "Vorgabe 0");
+    eq(defaultSi(18).map((_, i) => strokesReceived(18, si, i)), new Array(18).fill(1), "Vorgabe 18");
     eq(strokesReceived(5, si, 0), 1, "SI 1 bei Vorgabe 5");
     eq(strokesReceived(5, si, 4), 1, "SI 5 bei Vorgabe 5");
     eq(strokesReceived(5, si, 5), 0, "SI 6 bei Vorgabe 5");
@@ -1612,8 +1782,8 @@ function runSelfTest(){
   check("Punkte der Runde zaehlen mit Vorgabe", () => {
     const r = makeRound("P", "2026-05-01",
       [{ id: "a", name: "Anna", hcp: 18 }, { id: "b", name: "Ben", hcp: 0 }],
-      DEFAULT_PARS, { stableford: true });
-    for (let i = 0; i < HOLES; i++){ r.strokes.a[i] = r.pars[i] + 1; r.strokes.b[i] = r.pars[i]; }
+      defaultPars(18), { stableford: true });
+    for (let i = 0; i < 18; i++){ r.strokes.a[i] = r.pars[i] + 1; r.strokes.b[i] = r.pars[i]; }
     // Anna: jede Bahn ein Vorschlag, Bogey brutto -> Par netto -> 2 Punkte
     eq(totalPoints(r, "a"), 36, "Anna");
     eq(totalPoints(r, "b"), 36, "Ben");
@@ -1624,7 +1794,7 @@ function runSelfTest(){
   check("leaderboard sortiert bei Stableford nach Punkten", () => {
     const r = makeRound("P", "2026-05-01",
       [{ id: "a", name: "Anna" }, { id: "b", name: "Ben" }],
-      DEFAULT_PARS, { stableford: true });
+      defaultPars(18), { stableford: true });
     r.strokes.a[0] = 6;                 // 0 Punkte
     r.strokes.b[0] = 3;                 // Birdie, 3 Punkte
     eq(leaderboard(r).map(e => e.name), ["Ben", "Anna"], "nach Punkten");
@@ -1634,9 +1804,9 @@ function runSelfTest(){
 
   check("normalizeRound repariert Stroke-Index und Vorgabe", () => {
     const base = { id: "x", players: [{ id: "a", name: "A", hcp: 99 }], strokes: { a: [] } };
-    eq(normalizeRound(Object.assign({}, base, { si: [1, 2, 3] })).si, DEFAULT_SI, "zu kurz");
-    eq(normalizeRound(Object.assign({}, base, { si: new Array(HOLES).fill(1) })).si, DEFAULT_SI, "alles gleich");
-    const gut = DEFAULT_SI.slice().reverse();
+    eq(normalizeRound(Object.assign({}, base, { si: [1, 2, 3] })).si, defaultSi(18), "zu kurz");
+    eq(normalizeRound(Object.assign({}, base, { si: new Array(18).fill(1) })).si, defaultSi(18), "alles gleich");
+    const gut = defaultSi(18).slice().reverse();
     eq(normalizeRound(Object.assign({}, base, { si: gut })).si, gut, "gueltige Permutation bleibt");
     eq(normalizeRound(base).players[0].hcp, MAX_HCP, "Vorgabe geklemmt");
     eq(normalizeRound(base).stableford, false, "Stableford default aus");
@@ -1644,39 +1814,39 @@ function runSelfTest(){
 
   check("statsFor buendelt ueber Runden nach Namen", () => {
     const mk = (date, strokes, fertig) => {
-      const r = makeRound("Platz", date, [{ id: "a", name: "Anna" }], DEFAULT_PARS);
-      for (let i = 0; i < HOLES; i++) r.strokes.a[i] = strokes[i];
+      const r = makeRound("Platz", date, [{ id: "a", name: "Anna" }], defaultPars(18));
+      for (let i = 0; i < 18; i++) r.strokes.a[i] = strokes[i];
       if (fertig) r.completedAt = date + "T12:00:00Z";
       return r;
     };
-    const parRunde = DEFAULT_PARS.slice();
-    const schlecht = DEFAULT_PARS.map(v => v + 1);
+    const parRunde = defaultPars(18).slice();
+    const schlecht = defaultPars(18).map(v => v + 1);
     const s = statsFor([mk("2026-01-01", parRunde, true), mk("2026-02-01", schlecht, true),
                         mk("2026-03-01", schlecht, false)]);
     eq(s.length, 1, "ein Spieler");
     eq(s[0].rounds, 2, "offene Runde zaehlt nicht");
-    eq(s[0].holes, HOLES * 2, "Bahnen");
+    eq(s[0].holes, 36, "Bahnen");
     eq(s[0].strokes, 72 + 90, "Schlaege");
     eq(s[0].best.strokes, 72, "beste Runde");
     eq(s[0].best.toPar, 0, "beste Runde zu Par");
-    eq(s[0].counts.par, HOLES, "Pars");
-    eq(s[0].counts.bogey, HOLES, "Bogeys");
+    eq(s[0].counts.par, 18, "Pars");
+    eq(s[0].counts.bogey, 18, "Bogeys");
     // 4 Par-3-Bahnen, zwei Runden: 4x Par (3) + 4x Bogey (4) = 28 Schlaege
     eq(s[0].byPar[3].holes, 8, "Par-3-Bahnen ueber beide Runden");
     eq(s[0].byPar[3].strokes, 28, "Schlaege auf Par 3");
   });
 
   check("statsFor ignoriert Spieler ohne Eintrag", () => {
-    const r = makeRound("P", "2026-01-01", [makePlayer("A"), makePlayer("B")], DEFAULT_PARS);
+    const r = makeRound("P", "2026-01-01", [makePlayer("A"), makePlayer("B")], defaultPars(18));
     r.strokes[r.players[0].id][0] = 4;
     r.completedAt = "2026-01-01T12:00:00Z";
     eq(statsFor([r]).map(e => e.name), ["A"], "nur wer gespielt hat");
   });
 
   check("Vorschlaege: zuletzt benutzte Spieler und Plaetze", () => {
-    const alt = makeRound("Alter Platz", "2026-01-01", [makePlayer("Anna", 12)], DEFAULT_PARS);
+    const alt = makeRound("Alter Platz", "2026-01-01", [makePlayer("Anna", 12)], defaultPars(18));
     const neu = makeRound("Neuer Platz", "2026-02-01",
-      [makePlayer("Ben"), makePlayer("Anna", 10)], DEFAULT_PARS.map(v => 3));
+      [makePlayer("Ben"), makePlayer("Anna", 10)], defaultPars(18).map(v => 3));
     eq(recentPlayers([alt, neu]).map(p => p.name), ["Ben", "Anna"], "neueste zuerst, ohne Dubletten");
     eq(recentPlayers([alt, neu])[1].hcp, 10, "juengste Vorgabe gewinnt");
     eq(recentCourses([alt, neu]).map(c => c.name), ["Neuer Platz", "Alter Platz"], "Plaetze");
@@ -1702,6 +1872,100 @@ function runSelfTest(){
     if (!t.includes("Par 72")) throw new Error("Par-Summe fehlt");
     r.stableford = true;
     if (!shareText(r).includes("Punkte")) throw new Error("Punkte fehlen bei Stableford");
+  });
+
+  check("Bahnenzahl kommt aus pars, nicht aus einer Konstanten", () => {
+    const r9 = makeRound("Neun", "2026-01-01", [makePlayer("A")], defaultPars(9));
+    eq(holeCount(r9), 9, "neun Bahnen");
+    eq(r9.si, defaultSi(9), "Index passt sich an");
+    eq(r9.strokes[r9.players[0].id].length, 9, "neun Eintraege");
+    for (let i = 0; i < 9; i++) r9.strokes[r9.players[0].id][i] = r9.pars[i];
+    eq(totalStrokes(r9, r9.players[0].id), 36, "Summe ueber neun Bahnen");
+    eq(toPar(r9, r9.players[0].id), 0, "genau auf Par");
+  });
+
+  check("normalizeRound blaest kurze Runden nicht auf", () => {
+    const r = normalizeRound({ id: "n", pars: defaultPars(9),
+      players: [{ id: "a", name: "A" }], strokes: { a: [3] } });
+    eq(r.pars.length, 9, "bleibt bei neun");
+    eq(r.si.length, 9, "Index bleibt bei neun");
+    eq(r.strokes.a.length, 9, "Schlaege bleiben bei neun");
+    eq(normalizeRound({ id: "n", pars: new Array(99).fill(4),
+      players: [{ id: "a", name: "A" }], strokes: {} }).pars.length, MAX_HOLES, "auf Maximum geklemmt");
+    eq(normalizeRound({ id: "n", players: [{ id: "a", name: "A" }], strokes: {} }).pars.length,
+      DEFAULT_HOLES, "ohne pars die Vorgabe");
+  });
+
+  check("halfPoint teilt nur, wo es Sinn ergibt", () => {
+    eq(halfPoint(18), 9, "18 -> 9+9");
+    eq(halfPoint(12), 6, "12 -> 6+6");
+    eq(halfPoint(9), 0, "9 laesst sich nicht halbieren");
+    eq(halfPoint(4), 0, "zu kurz zum Teilen");
+    eq(halfPoint(6), 3, "6 -> 3+3");
+  });
+
+  check("tableColumns setzt die Summenspalten richtig", () => {
+    const cols = n => tableColumns(makeRound("X", "2026-01-01", [makePlayer("A")], defaultPars(n)))
+      .map(c => c.sum ? c.label : "#");
+    eq(cols(18).filter(c => c !== "#"), ["Out", "In", "Ges"], "18 Bahnen");
+    eq(cols(18).length, 18 + 3, "Spaltenzahl 18");
+    eq(cols(12).filter(c => c !== "#"), ["Out", "In", "Ges"], "12 Bahnen");
+    eq(cols(9).filter(c => c !== "#"), ["Ges"], "9 Bahnen nur Gesamt");
+    eq(cols(9).length, 9 + 1, "Spaltenzahl 9");
+    eq(cols(18).indexOf("Out"), 9, "Out steht nach Bahn 9");
+  });
+
+  check("commonPar nimmt das haeufigste Par", () => {
+    eq(commonPar(defaultPars(18)), 4, "Standardrunde: zehnmal Par 4");
+    eq(commonPar(new Array(12).fill(3)), 3, "Swingolf: Par 3");
+    eq(commonPar([3, 3, 5, 5]), 3, "Gleichstand entscheidet das kleinere");
+    eq(commonPar([]), PAR_PATTERN[0], "ohne Bahnen die Vorlage");
+  });
+
+  check("resizeSi ergibt immer eine Permutation", () => {
+    eq(resizeSi(defaultSi(18), 9), defaultSi(9), "kuerzen");
+    eq(resizeSi([3, 1, 2], 5).slice().sort((a, b) => a - b), [1, 2, 3, 4, 5], "erweitern");
+    eq(resizeSi([3, 1, 2], 5).slice(0, 3), [3, 1, 2], "vorhandene bleiben an ihrer Bahn");
+    eq(resizeSi([9, 9, 9], 3).slice().sort((a, b) => a - b), [1, 2, 3], "Dubletten werden ersetzt");
+    eq(resizeSi(null, 4), defaultSi(4), "aus dem Nichts");
+    eq(resizeSi([1, 2, 3], 2), [1, 2], "abgeschnittene Werte fallen weg");
+  });
+
+  check("resizeDraft zieht Par und Index mit", () => {
+    const d = makeRound("X", "2026-01-01", [makePlayer("A")], defaultPars(18));
+    d.pars[0] = 6;
+    resizeDraft(d, 9);
+    eq(d.pars.length, 9, "auf neun gekuerzt");
+    eq(d.pars[0], 6, "eigenes Par bleibt");
+    eq(d.si, defaultSi(9), "Index neu");
+    resizeDraft(d, 12);
+    eq(d.pars.length, 12, "wieder erweitert");
+    eq(d.pars[0], 6, "eigenes Par ueberlebt beides");
+    eq(d.pars[10], 4, "neue Bahn bekommt das haeufigste Par (10x 4 im Muster)");
+    eq(new Set(d.si).size, 12, "Index bleibt eindeutig");
+    resizeDraft(d, 999);
+    eq(d.pars.length, MAX_HOLES, "Obergrenze");
+    resizeDraft(d, 0);
+    eq(d.pars.length, MIN_HOLES, "Untergrenze");
+  });
+
+  check("strokesReceived rechnet mit der tatsaechlichen Bahnenzahl", () => {
+    const si9 = defaultSi(9);
+    eq(si9.map((_, i) => strokesReceived(9, si9, i)), new Array(9).fill(1), "Vorgabe 9 auf 9 Bahnen");
+    eq(strokesReceived(4, si9, 3), 1, "SI 4 bei Vorgabe 4");
+    eq(strokesReceived(4, si9, 4), 0, "SI 5 bei Vorgabe 4");
+    eq(strokesReceived(10, si9, 0), 2, "Vorgabe 10 auf 9 Bahnen");
+  });
+
+  check("presetList: gespielte Plaetze zuerst, dann die Vorlagen", () => {
+    const gespielt = makeRound("Isartal", "2026-01-01", [makePlayer("A")], defaultPars(9));
+    const list = presetList([gespielt]);
+    eq(list[0].name, "Isartal", "gespielter Platz oben");
+    eq([list[0].pars.length, list[0].saved], [9, true], "mit seiner Bahnenzahl");
+    eq(list.slice(1).map(x => x.pars.length), [18, 9, 12, 9], "danach die mitgelieferten");
+    eq(list.every(x => x.si.length === x.pars.length), true, "jede Vorlage hat einen passenden Index");
+    eq(presetList([])[0].name, BUILTIN_PRESETS[0].name, "ohne Historie nur Vorlagen");
+    eq(sum(BUILTIN_PRESETS[2].pars, 0, 12), 36, "Swingolf 12 x Par 3");
   });
 
   const failed = results.filter(r => !r.ok).length;
