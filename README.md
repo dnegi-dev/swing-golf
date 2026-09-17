@@ -2,25 +2,33 @@
 
 **→ https://dnegi-dev.github.io/swing-golf/**
 
-Scorecard für 18 Bahnen. Eine einzige HTML-Datei, kein Server, kein Build-Schritt,
+Scorecard für 6 bis 36 Bahnen. Eine einzige HTML-Datei, kein Server, kein Build-Schritt,
 keine Anmeldung, keine externen Requests. Alle Runden liegen im `localStorage`
 des Geräts.
 
 ## Was die App kann
 
-- **Runde anlegen** — Platzname, Datum, 1–6 Spieler, Par je Bahn (Standard 72,
-  jede Bahn per Tipp auf 3/4/5/6 änderbar).
+- **Vorlage wählen** — zuerst die Form: *Golfplatz 18/9 Loch*, *Swingolf 12/9
+  Bahnen*, oder ein Platz, den du schon gespielt hast. Der bringt Bahnenzahl,
+  Par und Stroke-Index mit.
+- **Bahnenzahl frei** — 1 bis 36, per −/+ oder Schnellwahl 6/9/12/18. Vorhandene
+  Bahnen behalten ihr Par, neue bekommen das häufigste Par dieser Runde: wer auf
+  einem Platz mit zwölfmal Par 3 eine Bahn ergänzt, will dort keine Par 5.
+- **Runde anlegen** — Platzname, Datum, 1–6 Spieler, Par je Bahn per Tipp auf
+  3/4/5/6 änderbar.
 - **Bahn für Bahn zählen** — großes −/+ je Spieler, Par der Bahn, laufender Stand
   gegen Par. Der erste Tipp auf `+` setzt direkt auf Par; das ist der häufigste
   Wert und spart unterwegs ein paar Tipper.
 - **Scorekarte** — vollständige Karte mit Out/In/Gesamt, Schläge nach Birdie,
-  Par, Bogey eingefärbt. Par lässt sich hier auch mitten in der Runde korrigieren.
+  Par, Bogey eingefärbt. Out/In erscheinen nur, wenn sich die Runde halbieren
+  lässt — bei 18 die üblichen 9+9, bei 12 sechs und sechs, bei 9 Bahnen bleibt
+  die Gesamtsumme. Par lässt sich hier auch mitten in der Runde korrigieren.
 - **Endstand** — Platzierung nach Schlägen zu Par, dazu die Zählung von
   Hole-in-One bis Doppelbogey.
 - **Historie** — gespielte Runden bleiben auf dem Gerät und lassen sich wieder
   öffnen oder löschen.
 - **Stableford** — pro Runde zuschaltbar. Punkte netto nach Spielvorgabe, verteilt
-  über den Stroke-Index des Platzes. Par netto sind 2 Punkte, unter null geht es
+  über den Stroke-Index des Platzes (1 bis Bahnenzahl, jede Zahl einmal). Par netto sind 2 Punkte, unter null geht es
   nicht.
 - **Statistik** — über alle abgeschlossenen Runden, gebündelt nach Spielernamen:
   Schläge je Bahn, ±Par je Bahn, beste Runde, Score-Verteilung, Schnitt je Par-3,
