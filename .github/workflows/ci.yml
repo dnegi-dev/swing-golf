@@ -7,6 +7,8 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+  # Auf Knopfdruck: Actions -> CI -> "Run workflow". Der build-Job haengt
+  # danach swing-golf.html als Artefakt an den Lauf.
   workflow_dispatch:
 
 concurrency:
@@ -17,8 +19,8 @@ permissions:
   contents: read
 
 jobs:
-  selftest:
-    name: Selbsttest
+  build:
+    name: Bundle bauen
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -27,18 +29,50 @@ jobs:
         with:
           node-version: 22
 
+      # build.mjs bringt seine eigenen Gates mit: kein Ausbruch aus <script>
+      # oder <style>, keine externe Adresse im Ergebnis. Faellt hier auf,
+      # ohne dass ein Browser starten muss.
+      - name: Quellen zu einer Datei zusammenfuegen
+        run: |
+          node build.mjs
+          cp dist/index.html swing-golf.html
+
+      # Der Download. Jeder Lauf haengt die fertige Datei an -- auch der
+      # von Hand ausgeloeste.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: swing-golf-html
+          path: swing-golf.html
+          if-no-files-found: error
+          retention-days: 90
+
+  selftest:
+    name: Selbsttest
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Geprueft wird das Bundle, nicht die Quellen: was ausgeliefert wird,
+      # ist was getestet gehoert.
+      - uses: actions/download-artifact@v4
+        with:
+          name: swing-golf-html
+
       - name: Chromium installieren
         run: |
           npm install --no-save --no-package-lock playwright@1.56.1
           npx playwright install --with-deps chromium
 
-      - name: index.html?selftest=1 headless pruefen
+      - name: Bundle mit ?selftest=1 headless pruefen
         run: |
           cat > selftest.mjs <<'JS'   # im Workspace, damit node_modules gefunden wird
           import pw from 'playwright';
           const { chromium } = pw;
 
-          const file = 'file://' + process.cwd() + '/index.html';
+          const file = 'file://' + process.cwd() + '/swing-golf.html';
           const browser = await chromium.launch();
           const page = await browser.newPage();
 
@@ -64,6 +98,18 @@ jobs:
           }
           const failed = rows.filter(r => !r.ok);
           console.log(`\n${rows.length - failed.length}/${rows.length} bestanden`);
+
+          // Die Rechtstexte muessen im ausgelieferten Markup stehen, nicht
+          // erst von JS erzeugt werden -- sonst sind sie ohne Skript weg.
+          await page.goto(file);
+          const legal = await page.$$eval('footer.legal-links a', as => as.map(a => a.textContent.trim()));
+          if (legal.join('|') !== 'Impressum|Datenschutz'){
+            problems.push('Fusszeile fehlt oder heisst anders: ' + JSON.stringify(legal));
+          }
+          for (const id of ['impressum', 'datenschutz']){
+            if (!await page.$('#' + id)) problems.push('Abschnitt #' + id + ' fehlt im Dokument');
+          }
+
           if (problems.length) console.log('\n' + problems.join('\n'));
 
           await browser.close();
@@ -84,24 +130,28 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
-      # contents: read ist noetig, sonst laeuft actions/checkout in ein 404:
-      # ein Job-permissions-Block ersetzt die Workflow-Ebene, er ergaenzt sie
-      # nicht -- was hier fehlt, steht auf none.
+      # Ein Job-permissions-Block ersetzt die Workflow-Ebene, er ergaenzt sie
+      # nicht: was hier fehlt, steht auf none. Darum auch actions: read --
+      # download-artifact braucht die Actions-API.
       contents: read
       pages: write
       id-token: write
+      actions: read
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v5
-
       - uses: actions/configure-pages@v5
 
-      - name: Nur index.html veroeffentlichen
+      # Veroeffentlicht wird genau die Datei, die der Selbsttest geprueft hat.
+      - uses: actions/download-artifact@v4
+        with:
+          name: swing-golf-html
+
+      - name: Nur die eine Datei veroeffentlichen
         run: |
           mkdir -p _site
-          cp index.html _site/index.html
+          cp swing-golf.html _site/index.html
 
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -117,19 +167,20 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
     steps:
-      - uses: actions/checkout@v5
-
-      - name: Datei benennen
-        run: cp index.html swing-golf.html
+      - uses: actions/download-artifact@v4
+        with:
+          name: swing-golf-html
 
       - name: Release mit der HTML-Datei anlegen
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" swing-golf.html \
+            --repo "$GITHUB_REPOSITORY" \
             --title "Swing Golf $GITHUB_REF_NAME" \
-            --notes "Scorecard fuer 18 Bahnen als einzelne HTML-Datei.
+            --notes "Golf-Scorecard als einzelne HTML-Datei.
 
           **swing-golf.html** herunterladen und oeffnen - am Desktop per Doppelklick,
           auf dem iPhone in der Dateien-App ablegen und von dort antippen. Kein Server,

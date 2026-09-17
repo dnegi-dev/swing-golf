@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<title>Swing Golf</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Golf-Scorecard fuer 18 Bahnen. Laeuft offline, speichert alles lokal auf dem Geraet.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Swing Golf">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f7a4a">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='38' fill='%230b4a32'/><circle cx='58' cy='130' r='20' fill='%23f6f8f6'/><path d='M112 32v116' stroke='%23f6f8f6' stroke-width='10' stroke-linecap='round'/><path d='M112 38l46 19-46 19z' fill='%23e04141'/></svg>">
+<style>
+<!--build:css-->
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<!-- Impressum und Datenschutz stehen als echtes Markup im Dokument, nicht als
+     JS-Vorlage: sie muessen erreichbar sein, auch wenn das Skript nicht laeuft.
+     Sichtbar werden sie ueber :target, dafuer reicht der Anker im Link. -->
+<footer class="legal-links">
+  <a href="#impressum">Impressum</a>
+  <a href="#datenschutz">Datenschutz</a>
+</footer>
+
+<section id="impressum" class="legal-doc" aria-labelledby="impressum-h">
+<!--build:content impressum-->
+</section>
+
+<section id="datenschutz" class="legal-doc" aria-labelledby="datenschutz-h">
+<!--build:content datenschutz-->
+</section>
+
+<script type="module">
+<!--build:js-->
+</script>
+</body>
+</html>
