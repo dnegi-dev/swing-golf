@@ -39,6 +39,18 @@ App startet ohne Safari-Leiste und die Runden bleiben stabil liegen. Ein
 Deploy-Workflow liegt bewusst nicht bei — das Repo ist privat, und Pages würde
 die Seite öffentlich stellen.
 
+## Download
+
+Die fertige Datei hängt an jedem [Release](../../releases) als
+`swing-golf.html`. Ein neues Release entsteht, sobald ein Tag gepusht wird:
+
+```bash
+git tag v1.0 && git push origin v1.0
+```
+
+Der Release-Job läuft erst, wenn der Selbsttest grün ist — eine kaputte Datei
+kommt gar nicht erst zum Download.
+
 ## Entwicklung
 
 Es gibt keinen Build-Schritt und keine Abhängigkeiten. `index.html` im Editor
@@ -51,7 +63,13 @@ Die Rechenfunktionen (`totalStrokes`, `toPar`, `scoreLabel`, `leaderboard`,
 index.html?selftest=1
 ```
 
-Er rendert statt der App eine Liste der Prüfungen und färbt Fehlschläge rot;
-der Seitentitel meldet das Ergebnis, sodass sich das auch headless auswerten
-lässt. Der Selbsttest gehört bewusst in dieselbe Datei — eine zweite Datei hätte die
+Er rendert statt der App eine Liste der Prüfungen und färbt Fehlschläge rot.
+Der Selbsttest gehört bewusst in dieselbe Datei — eine zweite Datei hätte die
 eine Bedingung gebrochen, unter der die App aufs Telefon kommt.
+
+`.github/workflows/ci.yml` fährt denselben Test bei jedem Push headless in
+Chromium und prüft zusätzlich zwei Versprechen der App:
+
+- **keine JS-Fehler** in der Konsole,
+- **keine externen Requests** — schlägt ein Skript oder eine Schrift von einem
+  CDN in die Datei, wird der Build rot, auch wenn alle Rechentests grün sind.
