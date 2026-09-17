@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  # Feature-Branches deckt der pull_request-Trigger ab; beides zusammen
+  # wuerde jeden Commit doppelt bauen.
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  selftest:
+    name: Selbsttest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Chromium installieren
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+
+      - name: index.html?selftest=1 headless pruefen
+        run: |
+          cat > selftest.mjs <<'JS'   # im Workspace, damit node_modules gefunden wird
+          import pw from 'playwright';
+          const { chromium } = pw;
+
+          const file = 'file://' + process.cwd() + '/index.html';
+          const browser = await chromium.launch();
+          const page = await browser.newPage();
+
+          // Die App verspricht: eine Datei, kein Netz. Beides wird hier geprueft.
+          const problems = [];
+          page.on('pageerror', e => problems.push('JS-Fehler: ' + e.message));
+          page.on('console', m => { if (m.type() === 'error') problems.push('Konsole: ' + m.text()); });
+          page.on('request', r => {
+            if (!r.url().startsWith('file://')) problems.push('Externer Request: ' + r.url());
+          });
+          page.on('requestfailed', r => problems.push('Request fehlgeschlagen: ' + r.url()));
+
+          await page.goto(file + '?selftest=1');
+          await page.waitForSelector('.test');
+          const rows = await page.$$eval('.test', ns => ns.map(n => ({
+            ok: n.classList.contains('pass'),
+            name: n.querySelector('.grow').childNodes[0].textContent.trim(),
+            detail: (n.querySelector('code') || {}).textContent || ''
+          })));
+
+          for (const r of rows){
+            console.log((r.ok ? '  PASS  ' : '  FAIL  ') + r.name + (r.detail ? '\n         ' + r.detail : ''));
+          }
+          const failed = rows.filter(r => !r.ok);
+          console.log(`\n${rows.length - failed.length}/${rows.length} bestanden`);
+          if (problems.length) console.log('\n' + problems.join('\n'));
+
+          await browser.close();
+
+          if (!rows.length){
+            console.error('Kein Selbsttest gefunden - laeuft ?selftest=1 noch?');
+            process.exit(1);
+          }
+          if (failed.length || problems.length) process.exit(1);
+          JS
+          node selftest.mjs
+
+  release:
+    name: Release
+    needs: selftest
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Datei benennen
+        run: cp index.html swing-golf.html
+
+      - name: Release mit der HTML-Datei anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" swing-golf.html \
+            --title "Swing Golf $GITHUB_REF_NAME" \
+            --notes "Scorecard fuer 18 Bahnen als einzelne HTML-Datei.
+
+          **swing-golf.html** herunterladen und oeffnen - am Desktop per Doppelklick,
+          auf dem iPhone in der Dateien-App ablegen und von dort antippen. Kein Server,
+          keine Installation, laeuft offline.
+
+          Getestet: Selbsttest gruen, keine JS-Fehler, keine externen Requests."

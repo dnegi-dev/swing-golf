@@ -1,7 +1,8 @@
 # Swing Golf
 
-Scorecard für 18 Bahnen. Eine einzige HTML-Datei, kein Server, keine Anmeldung,
-keine externen Requests. Alle Runden liegen im `localStorage` des Geräts.
+Scorecard für 18 Bahnen. Eine einzige HTML-Datei, kein Server, kein Build-Schritt,
+keine Anmeldung, keine externen Requests. Alle Runden liegen im `localStorage`
+des Geräts.
 
 ## Was die App kann
 
@@ -21,19 +22,34 @@ Nicht dabei: Handicap/Netto, Stableford, Abgleich zwischen mehreren Geräten.
 
 ## Aufs iPhone bringen
 
-**Mit App-Icon (empfohlen).** Die Datei muss einmal über https erreichbar sein —
-dafür liegt `.github/workflows/pages.yml` bei. In den Repo-Einstellungen unter
-*Pages → Source: GitHub Actions* einschalten, dann die veröffentlichte Adresse in
-Safari öffnen und *Teilen → Zum Home-Bildschirm*. Danach läuft die App offline,
-startet ohne Safari-Leiste und behält ihre Runden.
+`index.html` per AirDrop, Mail oder Messenger aufs Gerät schicken, in der
+Dateien-App ablegen und von dort öffnen. Am Desktop reicht ein Doppelklick.
 
-**Ohne Icon.** `index.html` per AirDrop oder Mail aufs Gerät schicken, in der
-Dateien-App ablegen und von dort öffnen. Funktioniert, hat aber zwei Haken: iOS
-bietet *Zum Home-Bildschirm* für lokale Dateien nicht an, und es räumt den
-Speicher von `file://`-Seiten unzuverlässig auf — die Rundenhistorie kann
-verschwinden. Wer die Historie braucht, nimmt den Weg über Pages.
+Zwei Dinge, die man dabei wissen sollte:
 
-Am Desktop reicht ein Doppelklick auf die Datei.
+- **Kein Home-Screen-Icon.** iOS bietet *Teilen → Zum Home-Bildschirm* nur für
+  Seiten an, die über http(s) geladen wurden, nicht für lokale Dateien.
+- **Die Historie ist nicht garantiert.** Safari räumt den Speicher von
+  `file://`-Seiten unzuverlässig auf. Die laufende Runde übersteht das Schließen
+  der App in der Regel, aber verlassen sollte man sich darauf nicht.
+
+Wer beides braucht, legt die Datei auf irgendeinen https-Host (GitHub Pages,
+Netlify, eigener Webspace) und öffnet sie von dort. Dann gibt es ein Icon, die
+App startet ohne Safari-Leiste und die Runden bleiben stabil liegen. Ein
+Deploy-Workflow liegt bewusst nicht bei — das Repo ist privat, und Pages würde
+die Seite öffentlich stellen.
+
+## Download
+
+Die fertige Datei hängt an jedem [Release](../../releases) als
+`swing-golf.html`. Ein neues Release entsteht, sobald ein Tag gepusht wird:
+
+```bash
+git tag v1.0 && git push origin v1.0
+```
+
+Der Release-Job läuft erst, wenn der Selbsttest grün ist — eine kaputte Datei
+kommt gar nicht erst zum Download.
 
 ## Entwicklung
 
@@ -47,7 +63,13 @@ Die Rechenfunktionen (`totalStrokes`, `toPar`, `scoreLabel`, `leaderboard`,
 index.html?selftest=1
 ```
 
-Er rendert statt der App eine Liste der Prüfungen und färbt Fehlschläge rot;
-der Seitentitel meldet das Ergebnis, sodass sich das auch headless auswerten
-lässt. Der Selbsttest gehört bewusst in dieselbe Datei — eine zweite Datei hätte die
+Er rendert statt der App eine Liste der Prüfungen und färbt Fehlschläge rot.
+Der Selbsttest gehört bewusst in dieselbe Datei — eine zweite Datei hätte die
 eine Bedingung gebrochen, unter der die App aufs Telefon kommt.
+
+`.github/workflows/ci.yml` fährt denselben Test bei jedem Push headless in
+Chromium und prüft zusätzlich zwei Versprechen der App:
+
+- **keine JS-Fehler** in der Konsole,
+- **keine externen Requests** — schlägt ein Skript oder eine Schrift von einem
+  CDN in die Datei, wird der Build rot, auch wenn alle Rechentests grün sind.
