@@ -5,6 +5,9 @@
 if (new URLSearchParams(location.search).has("selftest")){
   runSelfTest();
 } else {
+  /* Gesperrt wird die Ansicht, nicht der Speicher: die Runden werden
+     geladen wie immer, damit nach dem Anmelden sofort alles da ist. */
+  state.unlocked = loadUnlocked();
   const stored = loadState();
   state.rounds = stored.rounds;
   state.presets = stored.presets;

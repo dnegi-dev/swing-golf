@@ -9,6 +9,8 @@ const state = {
   presets: [],
   settings: { theme: "auto" },
   activeId: null,
+  unlocked: false,     // Anmeldung: siehe auth.js -- Huerde, keine Sperre
+  login: { user: "", pass: "", error: "" },
   draft: null,         // Runde im Aufbau (noch nicht in rounds)
   hole: 0,             // 0-basierter Bahnindex
   table: false,        // Scorekarte statt Bahn-Eingabe

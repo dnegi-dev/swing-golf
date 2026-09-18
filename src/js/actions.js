@@ -3,6 +3,27 @@
    ========================================================================= */
 
 const ACTIONS = {
+  login(){
+    const l = state.login;
+    if (!credentialsOk(l.user, l.pass)){
+      /* Der Benutzername bleibt stehen, das Passwort nicht: fast immer
+         hat man sich dort vertippt. */
+      l.pass = "";
+      l.error = "Benutzername oder Passwort stimmt nicht.";
+      return;
+    }
+    state.unlocked = true;
+    state.login = { user: "", pass: "", error: "" };
+    saveUnlocked(true);
+  },
+
+  logout(){
+    state.unlocked = false;
+    state.login = { user: "", pass: "", error: "" };
+    state.view = "home";
+    saveUnlocked(false);
+  },
+
   new(){
     state.draft = makeRound("", todayISO(), [makePlayer(""), makePlayer("")],
       defaultPars(DEFAULT_HOLES), { stableford: false });
@@ -274,8 +295,15 @@ root.addEventListener("click", ev => {
    das Feld bei jedem Tastendruck den Fokus. */
 root.addEventListener("input", ev => {
   const el = ev.target.closest("[data-field]");
-  if (!el || !state.draft) return;
+  if (!el) return;
   const field = el.dataset.field;
+
+  if (field === "user" || field === "pass"){
+    state.login[field] = el.value;
+    return;                         // kein Neuzeichnen, sonst springt der Fokus
+  }
+
+  if (!state.draft) return;
   if (field === "player"){
     const p = state.draft.players.find(p => p.id === el.dataset.id);
     if (p) p.name = el.value;
@@ -285,6 +313,15 @@ root.addEventListener("input", ev => {
   } else if (field === "courseName" || field === "date"){
     state.draft[field] = el.value;
   }
+});
+
+/* Die Eingabetaste schickt das Formular ab -- auf iOS ist das der
+   "Los"-Knopf der Tastatur, und ohne das muesste man ihn wegwischen, um den
+   Anmelde-Knopf zu treffen. */
+root.addEventListener("submit", ev => {
+  ev.preventDefault();
+  ACTIONS.login();
+  render();
 });
 
 /* Auswahlfelder und der Datei-Dialog laufen ueber change, nicht input. */

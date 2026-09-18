@@ -22,6 +22,7 @@ const JS_FILES = [
   "js/model.js",
   "js/derive.js",
   "js/settings.js",
+  "js/auth.js",
   "js/storage.js",
   "js/state.js",
   "js/render.js",

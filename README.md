@@ -54,6 +54,11 @@ Die Quellen liegen getrennt unter `src/`; `node build.mjs` fügt sie zu
 - **Darstellung** — unter *Mehr*: Automatisch (folgt dem Gerät), Hell oder
   Dunkel. Die Wahl bleibt gespeichert, gehört aber zum Gerät und wandert nicht
   in den Export.
+- **Anmeldung** — beim Öffnen fragt die App nach `admin` / `admin`. Das ist
+  eine Hürde, keine Zugangskontrolle: die Zugangsdaten stehen im Quelltext der
+  ausgelieferten Datei. Wer die Seite wirklich nicht öffentlich haben will,
+  stellt das Repo privat und Pages ab. Impressum und Datenschutz liegen
+  bewusst **vor** der Anmeldung — sie müssen unmittelbar erreichbar sein.
 - **Impressum und Datenschutz** — als echte Abschnitte im Dokument, erreichbar
   über die Fußzeile und über *Mehr*, ohne dass JavaScript sie erzeugt. Die
   Impressumsfelder sind **Platzhalter** und müssen ausgefüllt werden, bevor die

@@ -273,6 +273,19 @@ table.card-table td.empty-cell{color:var(--line)}
 .bar .fill{height:100%; border-radius:999px; background:var(--accent)}
 .bar .n{text-align:right; font-variant-numeric:tabular-nums; color:var(--muted)}
 
+/* ---------- Anmeldung ---------- */
+/* Eine Sache auf dem Schirm: die Karte steht mittig und traegt nichts
+   ausser sich selbst. */
+.gate{justify-content:center}
+.gate-card{margin:0 auto; width:100%; max-width:380px}
+.gate-card h1{font-size:24px; letter-spacing:-.3px; margin:0 0 2px}
+.gate-card button{margin-top:14px}
+.gate-error{margin:12px 0 0; font-size:14px; color:var(--danger)}
+input[type=password]{
+  background:var(--quiet); border:1px solid transparent; border-radius:var(--r);
+  padding:13px 14px; min-height:48px; width:100%; font-size:16px;
+}
+
 /* ---------- Impressum und Datenschutz ---------- */
 .legal{font-size:15px; line-height:1.6}
 .legal h3{font-size:13px; font-weight:600; color:var(--muted); margin:18px 0 4px}
