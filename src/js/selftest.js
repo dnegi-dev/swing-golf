@@ -455,6 +455,43 @@ function runSelfTest(){
     eq(back.settings.theme, "auto", "Einstellung auf Vorgabe");
   });
 
+  check("credentialsOk nimmt genau ein Paar an", () => {
+    eq(credentialsOk("admin", "admin"), true, "das richtige Paar");
+    eq(credentialsOk("  admin ", "admin"), true, "Leerzeichen am Namen stoeren nicht");
+    eq(credentialsOk("Admin", "admin"), false, "Gross-/Kleinschreibung zaehlt");
+    eq(credentialsOk("admin", "Admin"), false, "auch im Passwort");
+    eq(credentialsOk("admin", " admin"), false, "Leerzeichen im Passwort ist Absicht");
+    eq(credentialsOk("admin", ""), false, "leeres Passwort");
+    eq(credentialsOk("", ""), false, "gar nichts");
+    eq(credentialsOk(null, undefined), false, "auch ohne Werte kein Absturz");
+    return "geprueft: 8 Kombinationen";
+  });
+
+  check("Anmeldung liegt neben den Runden, nicht darin", () => {
+    // Das Flag darf nicht in der JSON-Sicherung landen: die gibt man weiter.
+    const r = demo();
+    const roh = serialize({ rounds: [r], activeId: r.id, presets: [],
+                            settings: normalizeSettings(null), unlocked: true });
+    eq(roh.includes("unlocked"), false, "kein Flag im Export");
+    eq(roh.includes(AUTH_KEY), false, "auch nicht der Schluessel");
+    eq(AUTH_KEY === STORAGE_KEY, false, "eigener Speicherschluessel");
+  });
+
+  check("loadUnlocked faellt auf gesperrt zurueck", () => {
+    const vorher = localStorage.getItem(AUTH_KEY);
+    try {
+      localStorage.removeItem(AUTH_KEY);
+      eq(loadUnlocked(), false, "ohne Eintrag gesperrt");
+      localStorage.setItem(AUTH_KEY, "ja");
+      eq(loadUnlocked(), false, "nur \"1\" zaehlt");
+      localStorage.setItem(AUTH_KEY, "1");
+      eq(loadUnlocked(), true, "mit \"1\" offen");
+    } finally {
+      if (vorher === null) localStorage.removeItem(AUTH_KEY);
+      else localStorage.setItem(AUTH_KEY, vorher);
+    }
+  });
+
   const failed = results.filter(r => !r.ok).length;
   root.innerHTML = `<div class="screen">
     ${topbar("Selbsttest", `${results.length - failed} von ${results.length} bestanden`)}

@@ -25,10 +25,16 @@ const ICONS = {
   back:    `<svg ${SVG}><path d="M15 5l-7 7 7 7"/></svg>`,
   layers:  `<svg ${SVG}><path d="M12 3l8 4.5-8 4.5-8-4.5L12 3Z"/><path d="M4 12.5 12 17l8-4.5"/><path d="M4 17 12 21.5 20 17"/></svg>`,
   save:    `<svg ${SVG}><path d="M12 3v11"/><path d="m8 10.5 4 4 4-4"/><path d="M4 17.5V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1.5"/></svg>`,
-  info:    `<svg ${SVG}><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6h.01"/></svg>`
+  info:    `<svg ${SVG}><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6h.01"/></svg>`,
+  lock:    `<svg ${SVG}><rect x="4.5" y="10.5" width="15" height="10" rx="2.4"/><path d="M8.2 10.5V7.8a3.8 3.8 0 0 1 7.6 0v2.7"/></svg>`
 };
 
 function render(){
+  /* Vor allem anderen: solange gesperrt, gibt es genau eine Ansicht.
+     Impressum und Datenschutz liegen ausserhalb von #app und bleiben
+     erreichbar -- sie muessen es sein. */
+  if (!state.unlocked){ root.innerHTML = viewGate(); return; }
+
   const v = state.view;
   let html = "";
 
@@ -67,6 +73,29 @@ function topbar(title, sub, back, right){
         style="padding:8px 6px">${ICONS.back}</button>` : ""}
     <h1>${esc(title)}${sub ? `<span class="sub">${esc(sub)}</span>` : ""}</h1>
     ${right || ""}
+  </div>`;
+}
+
+/* ---------- Anmeldung ---------- */
+
+function viewGate(){
+  const l = state.login;
+  return `<div class="screen plain gate">
+    <form class="card gate-card">
+      <h1>Swing Golf</h1>
+      <p class="sect">Anmeldung</p>
+      <div class="stack">
+        <input type="text" data-field="user" value="${esc(l.user)}"
+          placeholder="Benutzername" autocomplete="username"
+          autocapitalize="none" autocorrect="off" spellcheck="false"
+          enterkeyhint="next" aria-label="Benutzername">
+        <input type="password" data-field="pass" value="${esc(l.pass)}"
+          placeholder="Passwort" autocomplete="current-password"
+          enterkeyhint="go" aria-label="Passwort">
+      </div>
+      ${l.error ? `<p class="gate-error" role="alert">${esc(l.error)}</p>` : ""}
+      <button class="btn-primary btn-wide" data-act="login" type="submit">Anmelden</button>
+    </form>
   </div>`;
 }
 
@@ -213,6 +242,10 @@ function viewSettings(){
       <span class="ic">${ICONS.info}</span>
       <span class="t"><b>Datenschutz</b><span>Was gespeichert wird und wo</span></span>
       <span class="arrow">&rsaquo;</span></a>
+    <button class="link-row" data-act="logout">
+      <span class="ic">${ICONS.lock}</span>
+      <span class="t"><b>Abmelden</b><span>Zur&uuml;ck zur Anmeldung</span></span>
+      <span class="arrow">&rsaquo;</span></button>
   </div>`;
 
   html += `<p class="hint" style="text-align:center">Alle Runden liegen nur auf diesem

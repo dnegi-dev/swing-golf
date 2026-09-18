@@ -24,11 +24,18 @@
     <p>Alle Eingaben &ndash; Runden, Spielernamen, Vorlagen und Einstellungen
       &ndash; werden ausschlie&szlig;lich lokal im Browser gespeichert, im
       <code>localStorage</code> unter dem Schl&uuml;ssel
-      <code>swing-golf:v1</code>. Sie verlassen das Ger&auml;t nicht und sind
+      <code>swing-golf:v1</code>. Daneben liegt unter
+      <code>swing-golf:auth</code> ein einzelner Merker, dass die Anmeldung
+      erfolgt ist. Beides verl&auml;sst das Ger&auml;t nicht und ist
       &uuml;ber die Browser-Einstellungen jederzeit l&ouml;schbar.</p>
     <p>Diese Speicherung ist f&uuml;r die Funktion der Anwendung unbedingt
       erforderlich; ohne sie ginge jede Runde beim Schlie&szlig;en der Seite
       verloren. Sie ist damit nach &sect; 25 Abs. 2 Nr. 2 TDDDG einwilligungsfrei.</p>
+
+    <h3>Anmeldung</h3>
+    <p>Die Zugangsdaten werden im Browser gepr&uuml;ft und nicht &uuml;bertragen.
+      Gespeichert wird weder Benutzername noch Passwort, sondern nur der oben
+      genannte Merker.</p>
 
     <h3>Kein Tracking</h3>
     <p>Es findet keine Analyse des Nutzungsverhaltens statt. Es werden keine
