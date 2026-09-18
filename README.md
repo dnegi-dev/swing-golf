@@ -2,9 +2,12 @@
 
 **→ https://dnegi-dev.github.io/swing-golf/**
 
-Scorecard für 6 bis 36 Bahnen. Eine einzige HTML-Datei, kein Server, kein Build-Schritt,
-keine Anmeldung, keine externen Requests. Alle Runden liegen im `localStorage`
-des Geräts.
+Scorecard für 1 bis 36 Bahnen. Ausgeliefert wird **eine einzige HTML-Datei**:
+kein Server, keine Anmeldung, keine externen Requests. Alle Runden liegen im
+`localStorage` des Geräts.
+
+Die Quellen liegen getrennt unter `src/`; `node build.mjs` fügt sie zu
+`dist/index.html` zusammen. Getrennt arbeiten, als eine Datei ausliefern.
 
 ## Was die App kann
 
@@ -51,8 +54,11 @@ des Geräts.
 - **Darstellung** — unter *Mehr*: Automatisch (folgt dem Gerät), Hell oder
   Dunkel. Die Wahl bleibt gespeichert, gehört aber zum Gerät und wandert nicht
   in den Export.
-- **Impressum** — erreichbar über *Mehr*. Die Felder sind **Platzhalter**
-  und müssen ausgefüllt werden, bevor die Seite weitergegeben wird.
+- **Impressum und Datenschutz** — als echte Abschnitte im Dokument, erreichbar
+  über die Fußzeile und über *Mehr*, ohne dass JavaScript sie erzeugt. Die
+  Impressumsfelder sind **Platzhalter** und müssen ausgefüllt werden, bevor die
+  Seite weitergegeben wird. Die Datenschutzerklärung beschreibt, was der Code
+  belegt: Hosting bei GitHub Pages, Speicherung nur lokal, kein Tracking.
 
 Nicht dabei: Brutto-Netto-Wertung außerhalb von Stableford, Abgleich zwischen
 mehreren Geräten.
@@ -71,9 +77,9 @@ Eingerichtet ist das über *Settings → Pages → Build and deployment → Sour
 GitHub Actions*. Für ein privates Repo bräuchte Pages GitHub Pro; dieses Repo ist
 öffentlich, damit geht es auf jedem Plan.
 
-**Ohne Icon.** `index.html` per AirDrop, Mail oder Messenger aufs Gerät schicken,
-in der Dateien-App ablegen und von dort öffnen. Am Desktop reicht ein
-Doppelklick. Zwei Haken:
+**Ohne Icon.** `swing-golf.html` (siehe *Download*) per AirDrop, Mail oder
+Messenger aufs Gerät schicken, in der Dateien-App ablegen und von dort öffnen.
+Am Desktop reicht ein Doppelklick. Zwei Haken:
 
 - iOS bietet *Teilen → Zum Home-Bildschirm* nur für Seiten an, die über http(s)
   geladen wurden, nicht für lokale Dateien.
@@ -83,8 +89,12 @@ Doppelklick. Zwei Haken:
 
 ## Download
 
-Die fertige Datei hängt an jedem [Release](../../releases) als
-`swing-golf.html`. Ein neues Release entsteht, sobald ein Tag gepusht wird:
+**Auf Knopfdruck.** *Actions → CI → Run workflow*. Jeder Lauf hängt
+`swing-golf.html` als Artefakt an — auch der von Hand ausgelöste. Artefakte
+kommen als ZIP und halten 90 Tage.
+
+**Dauerhaft.** Die Datei hängt zusätzlich an jedem [Release](../../releases),
+dort direkt als `.html`. Ein Release entsteht, sobald ein Tag gepusht wird:
 
 ```bash
 git tag v1.0 && git push origin v1.0
@@ -95,24 +105,46 @@ kaputte Datei kommt weder zum Download noch auf die veröffentlichte Seite.
 
 ## Entwicklung
 
-Es gibt keinen Build-Schritt und keine Abhängigkeiten. `index.html` im Editor
-ändern, Datei im Browser neu laden, fertig.
+```bash
+node build.mjs          # -> dist/index.html, dann im Browser oeffnen
+```
+
+Node 20+, keine Abhängigkeiten. `dist/` ist nicht eingecheckt.
+
+| Datei | Inhalt |
+|---|---|
+| `src/index.html` | Gerüst mit den Markern `<!--build:css-->`, `<!--build:js-->`, `<!--build:content NAME-->` |
+| `src/styles.css` | die gesamte Gestaltung |
+| `src/js/*.js` | Modell, Ableitungen, Einstellungen, Speicherung, Zustand, Rendering, Interaktion, Selbsttest, Start — in dieser Reihenfolge verkettet, kein Modulgraph |
+| `src/content/*.html` | Impressum und Datenschutz als Markup |
+| `build.mjs` | fügt zusammen und bricht ab bei `</script>`/`</style>` in einer Quelle, bei einem übrig gebliebenen Marker und bei jeder `http(s)`-Adresse außerhalb einer `data:`-URI |
 
 Die Rechenfunktionen (`totalStrokes`, `toPar`, `scoreLabel`, `leaderboard`,
 `strokesReceived`, `stablefordPoints`, `statsFor`, `mergeRounds`,
 `normalizeRound`, Serialisierung) prüft ein eingebauter Selbsttest:
 
 ```
-index.html?selftest=1
+dist/index.html?selftest=1
 ```
 
 Er rendert statt der App eine Liste der Prüfungen und färbt Fehlschläge rot.
-Der Selbsttest gehört bewusst in dieselbe Datei — eine zweite Datei hätte die
-eine Bedingung gebrochen, unter der die App aufs Telefon kommt.
+Der Selbsttest gehört bewusst ins Bundle — eine zweite Datei hätte die eine
+Bedingung gebrochen, unter der die App aufs Telefon kommt.
 
-`.github/workflows/ci.yml` fährt denselben Test bei jedem Push headless in
-Chromium und prüft zusätzlich zwei Versprechen der App:
+`.github/workflows/ci.yml` baut, prüft, veröffentlicht:
+
+| Job | läuft bei | tut |
+|---|---|---|
+| `build` | jedem Trigger | `node build.mjs`, hängt `swing-golf.html` als Artefakt an |
+| `selftest` | danach | lädt **das Artefakt** und fährt `?selftest=1` headless in Chromium |
+| `pages` | nur `main` | veröffentlicht dieselbe Datei |
+| `release` | nur Tags `v*` | hängt sie an ein Release |
+
+Geprüft wird das Bundle, nicht die Quellen: getestet gehört, was ausgeliefert
+wird. Neben den Rechentests prüft der Job drei Versprechen der App:
 
 - **keine JS-Fehler** in der Konsole,
 - **keine externen Requests** — schlägt ein Skript oder eine Schrift von einem
-  CDN in die Datei, wird der Build rot, auch wenn alle Rechentests grün sind.
+  CDN in die Datei, wird der Build rot, auch wenn alle Rechentests grün sind,
+- **Impressum und Datenschutz stehen im Markup** — Fußzeile und beide
+  Abschnitte müssen da sein, ohne dass JavaScript sie erzeugt.
