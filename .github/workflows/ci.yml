@@ -160,6 +160,26 @@ jobs:
       - id: deploy
         uses: actions/deploy-pages@v4
 
+      # Gruenes CI hat schon einmal eine kaputte Seite durchgelassen: ein
+      # zweiter Deploy-Weg hat unsere Datei ueberschrieben, und gemerkt hat
+      # es niemand. Deshalb nach dem Deploy nachsehen statt ihn zu glauben.
+      - name: Ausgelieferte Seite gegen das Artefakt pruefen
+        env:
+          URL: ${{ steps.deploy.outputs.page_url }}
+        run: |
+          rm -f live.html        # sonst vergleicht ein Rest von vorhin mit
+          for i in 1 2 3 4 5 6; do
+            curl -fsS -o live.html "$URL" && break || sleep 10
+          done
+          if cmp -s live.html swing-golf.html; then
+            echo "Live-Seite ist byteweise das geprüfte Artefakt."
+          else
+            echo "Live-Seite weicht ab: $(stat -c%s live.html 2>/dev/null || echo 0) statt" \
+                 "$(stat -c%s swing-golf.html) Bytes."
+            echo "Deployt hier noch etwas anderes? Settings -> Pages -> Source"
+            exit 1
+          fi
+
   release:
     name: Release
     needs: selftest
